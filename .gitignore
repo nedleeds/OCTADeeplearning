@@ -22,3 +22,4 @@ train_dh*
 train_ser*
 tryAll*
 validation*
+resnet.py
