@@ -12,7 +12,7 @@ main_dh.py
 model_dh.py
 model_server.py
 model_utils.py
-resnet_3d.py
+resnet*.py
 run_sae.py
 sae.py
 showValid*.py
@@ -22,4 +22,3 @@ train_dh*
 train_ser*
 tryAll*
 validation*
-resnet*
