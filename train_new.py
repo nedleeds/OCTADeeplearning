@@ -25,15 +25,15 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, dataloader, dataset
 from torch.utils.tensorboard import SummaryWriter, writer
 
-from data_new import Data_Handler
+from data import Data_Handler
 from INCEPT_V3_3D import Inception3_3D
 # from adamp  import AdamP
-from model_new import (CV3FC2_3D, CV5FC2_3D, EFFICIENT_2D, GOOGLE_2D,
+from model import (CV3FC2_3D, CV5FC2_3D, EFFICIENT_2D, GOOGLE_2D,
                        INCEPT_V3_2D, VGG16_2D, VGG16_3D, VGG_2D, VIT_2D,
                        Res50_3D, ResNet_2D, ResNet_3D, autoencoder, freeze)
-from resnet import generate_model
 from StackedDAE import SAE
 from utils.earlyStop import EarlyStopping
+from utils.resnet import generate_model
 from utils.evaluate import checking
 from utils.FocalLoss import FocalLoss
 from utils.getOptimized import RandomSearch
