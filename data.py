@@ -52,7 +52,7 @@ class Data_Handler(Dataset):
     def __call__(self):
         self.set_skip_list()
         self.check_loaded_path()
-        self.loadLabel_setData()
+        self.set_label()
         self.splitTrainTest()
         self.doKFold()
         self.setOutputDir()
@@ -100,21 +100,42 @@ class Data_Handler(Dataset):
         print(f'Data directory : {data_dir}')
         print(r'{File extension: Numbers} :', f'{cnt}')
 
-
-    def loadLabel_setData(self):
-        label = self.loadLabel()
-        self.__label_pdFrame = label
-
-        for patient, disease in iter(zip(label['ID'], label['Disease'])):
-            if int(self.__ae_data_num) == 500 and self.__pre_train and (patient not in self.__skipList):
-                self.setDataDict(patient, disease)
-                self.setDiseaseKeys()
+    def set_label(self):
+        def load_label(label_path):
+            ''' 
+            Load label xlsx file from self.__label_path. 
+            '''
+            assert label_path, "You need to set the label path."
+            assert ".xlsx" in label_path, "Label data should be .xlsx file."
+            return pd.read_excel(label_path, engine='openpyxl')[:500]
+        
+        def set_patient_disease(patient, disease):
+            '''
+            set data dictionary = {patient:disease}
+            '''
+            if patient not in self.__skipList:
+                if disease in self.__selected_disease:
+                    self.__data_dict[int(patient)]=disease 
             else:
-                if (disease in self.__selected_disease) and (patient not in self.__skipList):
-                    self.setDataDict(patient, disease)
-                    self.setDiseaseKeys()
-                else: 
-                    pass
+                pass
+            
+        def set_disease():
+            '''
+            set sorts of diseases. 
+            self.__disease_keys = {'NORMAL', 'AMD', 'DR', 'CNV', 'CSC', 'RVO', 'OTHERS'}
+            '''
+            self.__diseases_keys = set(self.get_data_dict().values())
+            
+        label = load_label(self.__input_label_path)
+        self.__label_pdFrame = label
+        
+        for patient, disease in iter(zip(label['ID'], label['Disease'])):
+            set_patient_disease(patient, disease)
+            set_disease()
+
+        print(f'Grouped labels : {list(self.__diseases_keys)}')
+        print(f'Grouped data number : {len(self.__data_dict)}')
+
 
     def splitTrainTest(self):
         print(f'{"[ Train/Test Split ]":=^60}')
@@ -132,8 +153,8 @@ class Data_Handler(Dataset):
             raise ValueError("Test Rate should be in [0, 0.1, 0.15, 0.2, 0.3]")
 
         skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state=self.__seed)
-        patients = list(self.getDataDict().keys())
-        diseases = list(self.getDataDict().values())
+        patients = list(self.get_data_dict().keys())
+        diseases = list(self.get_data_dict().values())
         for train_indices, test_indices in skf.split(patients, diseases):
             self.countDisease(diseases, train_indices, test_indices)
             self.saveSplitInfo(patients, train_indices, test_indices)
@@ -249,25 +270,12 @@ class Data_Handler(Dataset):
         file_path = os.path.join(file_dir,f'{phase}.csv')
 
         df = pd.DataFrame({'patient': patients_set[phase],
-                           'disease': [self.getDataDict()[patient] for patient in patients_set[phase]]})
+                           'disease': [self.get_data_dict()[patient] for patient in patients_set[phase]]})
 
         df.to_csv(file_path, index=True, index_label='index', mode='w')
 
         self.setTotalPath(phase, file_path, fold_idx)
 
-    def loadLabel(self):
-        ''' Load label xlsx file from self.__label_path. '''
-        assert self.__input_label_path, "You need to set the label path."
-        assert ".xlsx" in self.__input_label_path, "Label data should be .xlsx file."
-
-        return pd.read_excel(self.__input_label_path, engine='openpyxl')[:500]
-
-    def setDiseaseKeys(self):
-        '''
-        set sorts of diseases. 
-        self.__disease_keys = ['NORMAL', 'AMD', 'DR', 'CNV', 'CSC', 'RVO', 'OTHERS']
-        '''
-        self.__diseases_keys = set(self.getDataDict().values())
     def getDiseaseKeys(self):
         '''
         return sorts of disease(list). 
@@ -288,15 +296,10 @@ class Data_Handler(Dataset):
         return disease dictionary : {'train'/'test':{disease: # of disease}}
         '''
         return self.__diseases[phase]
-
-    def setDataDict(self, patient, disease):
+        
+    def get_data_dict(self):
         '''
-        set data dictionary = {patient:disease}
-        '''
-        self.__data_dict[int(patient)]=disease
-    def getDataDict(self):
-        '''
-        return data dictionary = {patient:disease}
+        return {patient:disease}
         '''
         return self.__data_dict
 
@@ -479,7 +482,7 @@ class Data_Handler(Dataset):
             filename = os.path.join(self.getInputDataPath()['data'], f"{patient}.png")
             im=Image.open(filename)
             if self.__is_patch:
-                current_data_dict[patient] = self.getDataDict()[patient]
+                current_data_dict[patient] = self.get_data_dict()[patient]
                 img_arr = np.asarray(im)
                 T = (80*3/np.mean(img_arr))
                 img_size = img_arr.shape
@@ -525,9 +528,9 @@ class Data_Handler(Dataset):
 
             else:
                 image_list.append(transform(im))
-                current_data_dict[patient] = self.getDataDict()[patient]
+                current_data_dict[patient] = self.get_data_dict()[patient]
             T = 'no patch' if not self.__is_patch else T
-            print(f"{f'[{idx+1:03d}] image get':16} : {self.getDataDict()[patient]} - ", T)
+            print(f"{f'[{idx+1:03d}] image get':16} : {self.get_data_dict()[patient]} - ", T)
 
         self.setInputShape(input_shape = image_list[0].shape)
         self.setCurrentData(current_data_dict)
@@ -555,8 +558,8 @@ class Data_Handler(Dataset):
             nifti = nib.load(niftipath)
             nifti.uncache()
             niftilist.append(next(self.minMaxNormalize(nifti, patient)))
-            current_data_dict[patient] = self.getDataDict()[patient]
-            print(f"\r{f'[{idx+1:03d}] nifti get':16} : {self.getDataDict()[patient]}", end='', flush=True)
+            current_data_dict[patient] = self.get_data_dict()[patient]
+            print(f"\r{f'[{idx+1:03d}] nifti get':16} : {self.get_data_dict()[patient]}", end='', flush=True)
         print()
         print(f"{'total nifti':16} : {len(niftilist):4}")
         self.setInputShape(input_shape = niftilist[0][np.newaxis, :].shape)
