@@ -100,7 +100,7 @@ class train():
 
         self.pre_trained_batch = 1
         self.pre_trained_lr = self.args.ae_learning_rate#5e-2 #3e-3
-        self.classes = len(data_handler.getDiseaseKeys())
+        self.classes = len(data_handler.get_disease_keys())
         # self.modelSummary(dimension='3d', input_shape=(1,224,400,400))
         # checking model
         logging.info(f"Status-{list(set(self.index_disease.values()))}")

@@ -48,13 +48,14 @@ class Data_Handler(Dataset):
         self.__ae_data_num = args.ae_data_num
         self.__is_patch = args.patch_mode
         self.__data_path = args.data_path
+        self.__grouped_num = 0
 
     def __call__(self):
         self.set_skip_list()
         self.check_loaded_path()
         self.set_label()
-        self.splitTrainTest()
-        self.doKFold()
+        self.split_train_test()
+        self.split_train_valid()
         self.setOutputDir()
         print()
 
@@ -108,7 +109,7 @@ class Data_Handler(Dataset):
             assert label_path, "You need to set the label path."
             assert ".xlsx" in label_path, "Label data should be .xlsx file."
             return pd.read_excel(label_path, engine='openpyxl')[:500]
-        
+
         def set_patient_disease(patient, disease):
             '''
             set data dictionary = {patient:disease}
@@ -118,7 +119,7 @@ class Data_Handler(Dataset):
                     self.__data_dict[int(patient)]=disease 
             else:
                 pass
-            
+            self.__grouped_num = len(self.__data_dict)
         def set_disease():
             '''
             set sorts of diseases. 
@@ -134,39 +135,28 @@ class Data_Handler(Dataset):
             set_disease()
 
         print(f'Grouped labels : {list(self.__diseases_keys)}')
-        print(f'Grouped data number : {len(self.__data_dict)}')
+        print(f'Grouped data number : {self.__grouped_num}')
 
-
-    def splitTrainTest(self):
+    def split_train_test(self):
+        splits = int(np.ceil(1/self.__test_rate))
+        print(f'Test rate(n_splits) : {self.__test_rate}({splits})')
         print(f'{"[ Train/Test Split ]":=^60}')
-        if self.__test_rate == 0.1 :
-            splits=10
-        elif self.__test_rate ==0.15:
-            splits=7
-        elif self.__test_rate == 0.2:
-            splits=6
-        elif self.__test_rate == 0.3:
-            splits=4
-        elif self.__test_rate == 0:
-            splits=30
-        else:
-            raise ValueError("Test Rate should be in [0, 0.1, 0.15, 0.2, 0.3]")
-
+        
         skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state=self.__seed)
         patients = list(self.get_data_dict().keys())
         diseases = list(self.get_data_dict().values())
         for train_indices, test_indices in skf.split(patients, diseases):
-            self.countDisease(diseases, train_indices, test_indices)
-            self.saveSplitInfo(patients, train_indices, test_indices)
+            self.count_disease(diseases, train_indices, test_indices)
+            self.save_split_info(patients, train_indices, test_indices)
             print()
             break
 
-    def doKFold(self):
+    def split_train_valid(self):
         '''
-        for the case of imbalanced data set classes,
-        use 'Stratified KFold classification'.
+        Considering the imbalanced and uneven data set,
+        The 'Stratified KFold classification' is used.
         '''
-        train_path = self.getTotalPath()['train']
+        train_path = self.get_total_path()['train']
         train_pdFrame = pd.read_csv(train_path)
         train_patients = list(train_pdFrame['patient'])
         train_disease = list(train_pdFrame['disease'])
@@ -175,38 +165,39 @@ class Data_Handler(Dataset):
         fold_idx = 1
         for train_indices, validation_indices in skf.split(train_patients, train_disease):
             print(f'{f"[ fold {fold_idx} ]":=^60}')
-            self.countDisease(train_disease, train_indices, validation_indices)
-            self.saveSplitInfo(train_patients, train_indices, validation_indices, fold_idx)
+            self.count_disease(train_disease, train_indices, validation_indices)
+            self.save_split_info(train_patients, train_indices, validation_indices, fold_idx)
             fold_idx+=1
 
-        self.checkFolds()
+        self.check_folds()
         print()
 
-    def readCSV(self, phase, fold_idx=None):
+    def read_csv(self, phase, fold_idx=None):
         if fold_idx==None:
             if phase == 'total':
-                self.setTotalPath('total', './Data/input/total.csv')
-            path = self.getTotalPath()[phase]
+                self.set_total_path('total', './Data/input/total.csv')
+            path = self.get_total_path()[phase]
         else:
-            path = self.getTotalPath()[f'fold{fold_idx}'][phase]
+            path = self.get_total_path()[f'fold{fold_idx}'][phase]
         
         pdFrame = pd.read_csv(path)
         data_dict = list(pdFrame['patient'])
         return data_dict
 
-    def checkFolds(self):
+    def check_folds(self):
         '''
-        check KFolds has been worked correctly.
-        sum of validation set from each folds should be same as train set.
+        Check KFolds has been worked correctly.
+        Load saved CSV data labels and check the ratio and the # of data.
+        Sum of validation set from each folds should be same as train set.
         '''
-        train_patients = self.readCSV('train')
+        train_patients = self.read_csv('train')
 
         fold_num = self.__fold_num
         kfold_patients = []
         kfold_len = []
         for idx in range(1, fold_num+1):
-            kfold_train_patients = self.readCSV(phase='train', fold_idx=idx)
-            kfold_valid_patients = self.readCSV(phase='valid', fold_idx=idx)
+            kfold_train_patients = self.read_csv(phase='train', fold_idx=idx)
+            kfold_valid_patients = self.read_csv(phase='valid', fold_idx=idx)
             kfold_len.append(f'{len(set(kfold_train_patients))}/{len(set(kfold_valid_patients))}')
             kfold_patients.extend(kfold_valid_patients)
             assert len(set(kfold_train_patients))+len(set(kfold_valid_patients)) == len(train_patients), \
@@ -215,23 +206,25 @@ class Data_Handler(Dataset):
         assert len(set(train_patients))==len(set(kfold_patients)), \
                "Total KFolds validation set should be same with train set."
         
-        print(f'\ntotal train : {len(train_patients)}')
-        print(f'kfold valid : {len(kfold_patients)} - {kfold_len}')
+        train_num = len(train_patients)
+        print(f'\nTotal - train, test : {train_num}, {self.__grouped_num-train_num}')
+        print(f'Folds - train/valid : {len(kfold_patients)} - {kfold_len}')
 
-    def countDisease(self, total_diseases, train_indices, test_indices):
+    def count_disease(self, total_diseases, train_indices, test_indices):
         '''
-        counting # of each disease.
-        !!! 'test' will be 'validation' when do KFold !!!
+        Counting # of each disease.
+        Basically, split train/test, when train is working,
+        trainset needs to split into train/valid.
         '''
         diseases_set = {'train':[total_diseases[idx] for idx in train_indices],
                         'test' :[total_diseases[idx] for idx in test_indices]}
 
         for phase in ['train', 'test']:
-            for disease in self.getDiseaseKeys():
-                self.setDiseaseDict(phase, disease, diseases_set[phase].count(disease))
-            print(f'{phase}-{dict(sorted(self.getDiseaseDict(phase).items(), key=lambda x : x[1], reverse=True))}')
+            for disease in self.get_disease_keys():
+                self.set_disease_dict(phase, disease, diseases_set[phase].count(disease))
+            print(f'{phase}-{dict(sorted(self.get_disease_dict(phase).items(), key=lambda x : x[1], reverse=True))}')
         
-    def saveSplitInfo(self, total_patients, train_indices, test_indices, fold_idx=None):
+    def save_split_info(self, total_patients, train_indices, test_indices, fold_idx=None):
         '''
         save the 'train', 'test' data.
         !!! 'test' will be 'validation' when do KFold !!!
@@ -245,52 +238,61 @@ class Data_Handler(Dataset):
                         split[1]:[total_patients[idx] for idx in test_indices]}
 
         for phase in split:
-            self.saveInfo(phase, patients_set, fold_idx)
+            self.save_info(phase, patients_set, fold_idx)
 
-    def saveInfo(self, phase, patients_set, fold_idx=None):
+    def save_info(self, phase, patients_set, fold_idx=None):
         '''
-        if fold_idx == None : train/test(phase) split.
-        else : train/valid(phase) split.
-        saved data : {'index', 'patient', 'disease'}
-        total_path is set right here.
+        This program handling the data with label data.
+        So, we save the split info for the txt file.
+        Save data : {'index', 'patient', 'disease'}
+        Save dir = './Data/input'
+        Save path is based on below features.
+        Set the self.__total_path based on the path either.
+        
+        [features]
+        if fold_idx == None : 
+            train/test(phase) split.
+        else : 
+            train/valid(phase) split.
         '''
-        d = list(self.getDiseaseKeys())
+        
+        d = list(self.get_disease_keys())
         d.remove('NORMAL')
         self.__disease_dir = ('_').join(sorted(d))
         if fold_idx == None:
-            file_dir = os.path.join('./Data/input',self.__dim,self.__disease_dir,f'test_rate_{self.__test_rate}',phase)
+            file_dir = os.path.join('./Data/input',
+                                    self.__dim, self.__disease_dir,
+                                    f'test_rate_{self.__test_rate}',phase)
         else:
-            file_dir = os.path.join('./Data/input',self.__dim,self.__disease_dir,f'test_rate_{self.__test_rate}','train')
+            file_dir = os.path.join('./Data/input',
+                                    self.__dim, self.__disease_dir,
+                                    f'test_rate_{self.__test_rate}','train')
             fold_dir = os.path.join(file_dir, f'{self.__fold_num}fold')
-
             file_dir = os.path.join(fold_dir, f'fold{fold_idx}')
-
-        os.makedirs(file_dir, exist_ok=True)
             
+        os.makedirs(file_dir, exist_ok=True)
         file_path = os.path.join(file_dir,f'{phase}.csv')
-
         df = pd.DataFrame({'patient': patients_set[phase],
                            'disease': [self.get_data_dict()[patient] for patient in patients_set[phase]]})
-
         df.to_csv(file_path, index=True, index_label='index', mode='w')
+        
+        self.set_total_path(phase, file_path, fold_idx)
 
-        self.setTotalPath(phase, file_path, fold_idx)
-
-    def getDiseaseKeys(self):
+    def get_disease_keys(self):
         '''
         return sorts of disease(list). 
         ex) ['NORMAL', 'AMD', 'DR', 'CNV', 'CSC', 'RVO', 'OTHERS']
         '''
         return self.__diseases_keys
 
-    def setDiseaseDict(self, phase, disease, number):
+    def set_disease_dict(self, phase, disease, number):
         '''
         set disease dictionary.
         phase = 'train/test' or 'train/valid'(for KFolds)
         self.__disease = {phase : {disease: # of disease}}
         '''
         self.__diseases[phase][disease] = number
-    def getDiseaseDict(self, phase='train'):
+    def get_disease_dict(self, phase='train'):
         '''
         phase : train / test
         return disease dictionary : {'train'/'test':{disease: # of disease}}
@@ -309,10 +311,11 @@ class Data_Handler(Dataset):
         '''
         return self.__label_pdFrame
 
-    def setTotalPath(self, phase, path, fold_idx=None):
+    def set_total_path(self, phase, path, fold_idx=None):
         '''
-        phase : train, test, kfold
+        phase : train / test / kfold
         path : train_path(str), test_path(str), kfold_path(dict)
+        fold_idx : 'train/test' if None else 'train/valid'
         '''
         if fold_idx == None:
             self.__total_path[phase]=path
@@ -321,7 +324,7 @@ class Data_Handler(Dataset):
                 self.__total_path.update({f'fold{fold_idx}':{}})
             self.__total_path[f'fold{fold_idx}'].update({phase:path})
             
-    def getTotalPath(self):
+    def get_total_path(self):
         '''
         return total_path('train', 'test', 'fold1,2,...n')
         '''
@@ -437,14 +440,14 @@ class Data_Handler(Dataset):
     def set_patients(self, phase, fold_idx, data_num=None):
         import random
         if data_num is None:
-            self.__patients = sorted(self.readCSV(phase, fold_idx))
+            self.__patients = sorted(self.read_csv(phase, fold_idx))
             if phase == 'total':
                 self.__patients = [p for p in self.__patients if p not in self.__skipList]
         else:
             random.seed(5)
-            self.__patients = sorted(random.sample(self.readCSV(phase, fold_idx), data_num))
+            self.__patients = sorted(random.sample(self.read_csv(phase, fold_idx), data_num))
         # import random
-        # patients = self.readCSV(phase, fold_idx)
+        # patients = self.read_csv(phase, fold_idx)
         # random.shuffle(patients)
         # self.__patients=patients
 
@@ -577,8 +580,8 @@ class Data_Handler(Dataset):
         yield torch.from_numpy(np.asarray(x)).float().to(device=self.__device)
 
     def setDiseaseLabel(self):
-        disease_index = {d:i for i, d in enumerate(sorted(self.getDiseaseKeys()))}
-        for d in sorted(self.getDiseaseDict()):
+        disease_index = {d:i for i, d in enumerate(sorted(self.get_disease_keys()))}
+        for d in sorted(self.get_disease_dict()):
             if d=='NORMAL':
                 d2 = [d for d, i in disease_index.items() if i == 0].pop()
                 disease_index[d], disease_index[d2] = disease_index[d2], disease_index[d]
