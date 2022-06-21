@@ -27,10 +27,9 @@ class Data_Handler(Dataset):
         self.__model = args.model
         self.__loss = args.loss
         self.__selected_disease = args.disease
-        self.__isMerge = args.mergeDisease
+        self.__is_merge = args.mergeDisease
         self.__fold_num = args.fold_num
         self.__seed = 304
-        self.__label_pdFrame = {}
         self.__data_dict = {}
         self.__diseases_keys = {}
         self.__diseases = {'train':{}, 'test':{}, 'total':{}}
@@ -56,7 +55,7 @@ class Data_Handler(Dataset):
         self.set_label()
         self.split_train_test()
         self.split_train_valid()
-        self.setOutputDir()
+        self.set_output_dir()
         print()
 
     def set_skip_list(self):
@@ -128,7 +127,6 @@ class Data_Handler(Dataset):
             self.__diseases_keys = set(self.get_data_dict().values())
             
         label = load_label(self.__input_label_path)
-        self.__label_pdFrame = label
         
         for patient, disease in iter(zip(label['ID'], label['Disease'])):
             set_patient_disease(patient, disease)
@@ -171,6 +169,29 @@ class Data_Handler(Dataset):
 
         self.check_folds()
         print()
+
+    def set_output_dir(self):
+            options = self.get_options()
+            log_dir = os.path.join('./Data/output/log', options)
+            check_dir = os.path.join('./Data/output/checkpoint', options)
+            result_dir = os.path.join('./Data/output/result', options)
+            tb_writer_dir = os.path.join('./Data/output/tensorboard', options)
+            best_parameter_dir = os.path.join('./Data/output/best_parameter', options)
+            roc_plot_dir = os.path.join('./Data/output/roc_plot', options)
+
+            os.makedirs(log_dir, exist_ok=True)
+            os.makedirs(check_dir, exist_ok=True)
+            os.makedirs(result_dir, exist_ok=True)
+            os.makedirs(tb_writer_dir, exist_ok=True)
+            os.makedirs(best_parameter_dir, exist_ok=True)
+            os.makedirs(roc_plot_dir, exist_ok=True)
+
+            self.__output_dir = {'log':log_dir,  
+                                'checkpoint':check_dir, 
+                                'result':result_dir,
+                                'tensorboard':tb_writer_dir,
+                                'best_parameter':best_parameter_dir,
+                                'roc_plot':roc_plot_dir}
 
     def read_csv(self, phase, fold_idx=None):
         if fold_idx==None:
@@ -292,24 +313,19 @@ class Data_Handler(Dataset):
         self.__disease = {phase : {disease: # of disease}}
         '''
         self.__diseases[phase][disease] = number
+    
     def get_disease_dict(self, phase='train'):
         '''
         phase : train / test
         return disease dictionary : {'train'/'test':{disease: # of disease}}
         '''
         return self.__diseases[phase]
-        
+
     def get_data_dict(self):
         '''
         return {patient:disease}
         '''
         return self.__data_dict
-
-    def getLabel(self):
-        '''
-        return Label data which type is pandas DataFrame.
-        '''
-        return self.__label_pdFrame
 
     def set_total_path(self, phase, path, fold_idx=None):
         '''
@@ -323,12 +339,22 @@ class Data_Handler(Dataset):
             if phase == 'train':
                 self.__total_path.update({f'fold{fold_idx}':{}})
             self.__total_path[f'fold{fold_idx}'].update({phase:path})
-            
+
     def get_total_path(self):
         '''
         return total_path('train', 'test', 'fold1,2,...n')
         '''
         return self.__total_path
+
+    def get_options(self):
+        disease = self.__disease_dir
+        model = self.__model
+        filtering = self.__filter
+        fold_num = f'{self.__fold_num}fold'
+        flt = 'flt_o' if self.__flatten else 'flt_x'
+        classification = 'binary' if self.__is_merge else 'multi'
+        options = f'{disease}/{model}/{filtering}/{fold_num}/{flt}/{classification}'
+        return options
 
     def getInputDataPath(self):
         return {'data':self.__input_data_path, 'lable':self.__input_label_path}
@@ -357,54 +383,27 @@ class Data_Handler(Dataset):
         data_dict = {patient:disease} of current phase & fold.
         '''
         self.__current_data_dict = data_dict
+        
     def getCurrentData(self):
         return self.__current_data_dict
 
     def getX(self):
         return self.__X
+    
     def gety(self):    
         return self.__y
+    
     def getPhase(self):
         return self.__phase
+    
     def setPhase(self, phase):
         self.__phase =phase
+        
     def setInputShape(self, input_shape):
         self.__input_shape = input_shape
+        
     def getInputShape(self):
         return self.__input_shape
-    def get_options_for_dir_name(self):
-        disease = self.__disease_dir
-        model = self.__model
-        filtering = self.__filter
-        fold_num = f'{self.__fold_num}fold'
-        flt = 'flt_o' if self.__flatten else 'flt_x'
-        classification = 'binary' if self.args.mergeDisease else 'multi'
-        options = f'{disease}/{model}/{filtering}/{fold_num}/{flt}/{classification}'
-        return options
-    
-    def setOutputDir(self):
-        flt = 'flt_o' if self.__flatten else 'flt_x'
-        options = self.get_options_for_dir_name()
-        log_dir = os.path.join('./Data/output/log', options)
-        check_dir = os.path.join('./Data/output/checkpoint', options)
-        result_dir = os.path.join('./Data/output/result', options)
-        tb_writer_dir = os.path.join('./Data/output/tensorboard', options)
-        best_parameter_dir = os.path.join('./Data/output/best_parameter', options)
-        roc_plot_dir = os.path.join('./Data/output/roc_plot', options)
-
-        os.makedirs(log_dir, exist_ok=True)
-        os.makedirs(check_dir, exist_ok=True)
-        os.makedirs(result_dir, exist_ok=True)
-        os.makedirs(tb_writer_dir, exist_ok=True)
-        os.makedirs(best_parameter_dir, exist_ok=True)
-        os.makedirs(roc_plot_dir, exist_ok=True)
-
-        self.__output_dir = {'log':log_dir,  
-                             'checkpoint':check_dir, 
-                             'result':result_dir,
-                             'tensorboard':tb_writer_dir,
-                             'best_parameter':best_parameter_dir,
-                             'roc_plot':roc_plot_dir}
 
     def getOuputDir(self):
         '''
@@ -601,7 +600,7 @@ class Data_Handler(Dataset):
         
         for idx, (patient, disease) in enumerate(self.getCurrentData().items()):
             if loss in ["ce", "fcl", "nll"] : 
-                if self.__isMerge == False:
+                if self.__is_merge == False:
                     if self.__pre_train:
                         label2Num.append([disease, patient])
                     else:
@@ -617,7 +616,7 @@ class Data_Handler(Dataset):
                             label2Num.extend([int(disease != 'NORMAL')])
                 y = label2Num
             else:
-                if self.__isMerge ==False:
+                if self.__is_merge ==False:
                     onehot = [0.]*len(table)
                     onehot[table[disease]]=1.
                     onehot_list.append(onehot)
