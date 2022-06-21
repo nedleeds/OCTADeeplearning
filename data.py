@@ -26,7 +26,6 @@ class Data_Handler(Dataset):
         self.__layer = args.layer
         self.__model = args.model
         self.__loss = args.loss
-        self.__ae = args.ae
         self.__selected_disease = args.disease
         self.__isMerge = args.mergeDisease
         self.__fold_num = args.fold_num
@@ -75,7 +74,6 @@ class Data_Handler(Dataset):
                 assert 'OG' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
             else:
                 assert 'Curvelet' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
-
             assert '2d' in model.lower(), f"Set corret model({model}) for {dim}."
 
         else:
@@ -89,7 +87,6 @@ class Data_Handler(Dataset):
                     assert 'OCTA'in data_path, f"Set correct data_path({data_path}) for filter({flter})."
                 else:
                     raise ValueError(f"Set correct layer({layer}) for filter({flter}), dim({dim})")
-
             else:
                 assert 'Curvelet' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
                 # curvelet --> need to make SRL, DRL, total

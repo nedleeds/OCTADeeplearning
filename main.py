@@ -4,9 +4,9 @@ import os
 import time 
 from datetime import datetime
 
-from data_new import Data_Handler
-from train_new import train
-from test_new import test
+from test import test
+from data import Data_Handler
+from train import train
 from utils.setDir  import setDirectory
 
 def str_to_bool(v):
@@ -37,15 +37,15 @@ def getArguments():
                         help='Enter the # of folds.(default: 5)')
 
     parser.add_argument('--flatten', nargs='?', default='True', type=str_to_bool,
-                        help='Flatten : True or False')
+                        help='Flatten for 3D Volumes: True or False')
 
     parser.add_argument('--test_rate', nargs='?', default=0.15, type=float,
-                        help='Setting the rate of train/test')
+                        help='Set the rate of train/test : 0.1, 0.15, 0.2, 0.25, 0.3')
 
     parser.add_argument('--dimension', nargs='?', default='3d', type=str,
-                        help='Setting dimension. defaul: 3d')
+                        help='Choose the dimension between 2d/3d')
 
-    parser.add_argument('--model', nargs='?', default='Res_18_3D', type=str,
+    parser.add_argument('--model', nargs='?', default='Res_10_3D', type=str,
                         help='Model name : VGG_16_2D, VGG_19_2D, \
                               Res_10_2D, Res_18_2D, Res_50_2D, VIT_2D,\
                               Incept_v3_2D, Google_2D,\
@@ -54,40 +54,40 @@ def getArguments():
                               Incept_3D, Efficient_3D')
 
     parser.add_argument('--optimizer', nargs='?', default='asgd', type=str, 
-                        help='Optimizer : sgd, asgd, adam, adagrad, adamW, adamp, adadelta,rmsp')
+                        help='Set the optimizer : sgd, asgd, adam, adagrad, adamW, adamp, adadelta, rmsp')
 
     parser.add_argument('--loss', nargs='?', default='nll', type=str,
-                        help='Loss function : ce, bce, mse, nll, fcl')
+                        help='Choose the loss function : ce, bce, mse, nll, fcl')
 
     parser.add_argument('--learningrate', nargs='?', default=5e-3, type=float, #5e-3 for ae_pre_train
-                        help='Setting Learning Rate')
+                        help='Set the learning Rate')
 
     parser.add_argument('--epoch', nargs='?', default=200, type=int,
-                        help='Setting Epoch')
+                        help='Set the epoch Number')
 
     parser.add_argument('--batch', nargs='?', default=1, type=int, #32 for ae_pre_train
-                        help='Setting Batch size')
+                        help='Set the batch size')
 
     parser.add_argument('--disease', nargs='?', default="NORMAL AMD CSC DR RVO", type=str,
-                        help='Select Disease. ex) "NORMAL AMD CNV CSC DR RVO OTHERS"')
+                        help='Group the disease that you want to utilize ex) "NORMAL AMD CNV CSC DR RVO OTHERS"')
 
     parser.add_argument('--mergeDisease', nargs='?', default='True', type=str_to_bool,
-                        help='Setting Disease to Abnormal')
+                        help='Set the disease to Abnormal')
     
     parser.add_argument('--filter', nargs='?', default='OG', type=str,
-                        help='Filter : OG / Curvelet')
+                        help='Using filter or not : OG / Curvelet')
 
     parser.add_argument('--layer', nargs='?', default='SRL', type=str,
-                        help='Layer : SRL / DRL / Total(=OCTA)')
+                        help='Retinal layer Setting : SRL / DRL / Total(=OCTA)')
 
-    parser.add_argument('--ae', nargs='?', default='False', type=str_to_bool,
-                        help='Autoencoder pre-training : True/False')
+    parser.add_argument('--tfl', nargs='?', default='False', type=str_to_bool,
+                        help='Set the transfer learning : True/False')
 
     parser.add_argument('--ae_pre_train', nargs='?', default='True', type=str_to_bool,
                         help='Autoencoder pre-traning : True/False')
     
     parser.add_argument('--weightDecay', nargs='?', default=0.15, type=float, #0.15
-                        help='Weight Decay')
+                        help='Setting the weight Decay')
 
     parser.add_argument('--tolerance', nargs='?', default=0.0, type=float, 
                         help='tolerance')
@@ -102,9 +102,13 @@ def getArguments():
                         help='asgd, sgd, rmsp, adam, adamw, adadelta, adagrad') # asgd for ae_x
 
     parser.add_argument('--patch_mode', default='False', type=str_to_bool)
+    
     parser.add_argument('--test_mode' , default='False', type=str_to_bool)
+    
     parser.add_argument('--medcam', default='False', type=str_to_bool)
+    
     parser.add_argument('--ae_learning_rate', nargs='?', default=5e-3, type=float) # 5e-3: loss 483-0.001607 # pre-train LR
+    
     parser.add_argument('--num_class', nargs='?', default=2, type=int)
 
     args = parser.parse_args()

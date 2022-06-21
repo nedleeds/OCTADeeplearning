@@ -1,48 +1,37 @@
-import copy
-import csv
-import logging
 import os
 import random
-import time
-
-import matplotlib
-import matplotlib.pyplot as plt
-import nibabel as nib
+import copy
+import logging
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import nibabel as nib
+import matplotlib
+import matplotlib.pyplot as plt
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torchsummary
-from efficientnet_pytorch_3d import EfficientNet3D
-from numpy.core.fromnumeric import nonzero
 from sklearn.model_selection import KFold, StratifiedKFold
+
 from torch.nn import parameter
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.optim import ASGD, SGD, Adadelta, Adagrad, Adam, AdamW, RMSprop
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, dataloader, dataset
+from torch.optim import ASGD, SGD, Adadelta, Adagrad, Adam, AdamW, RMSprop
 from torch.utils.tensorboard import SummaryWriter, writer
+from efficientnet_pytorch_3d import EfficientNet3D
 
 from data import Data_Handler
-from INCEPT_V3_3D import Inception3_3D
-# from adamp  import AdamP
-from model import (CV3FC2_3D, CV5FC2_3D, EFFICIENT_2D, GOOGLE_2D,
-                       INCEPT_V3_2D, VGG16_2D, VGG16_3D, VGG_2D, VIT_2D,
-                       Res50_3D, ResNet_2D, ResNet_3D, autoencoder, freeze)
-from StackedDAE import SAE
-from utils.earlyStop import EarlyStopping
+
 from utils.resnet import generate_model
 from utils.evaluate import checking
 from utils.FocalLoss import FocalLoss
+from utils.earlyStop import EarlyStopping
 from utils.getOptimized import RandomSearch
+from utils.INCEPT_V3_3D import Inception3_3D
 
-# from efficientnet_pytorch import EfficientNet
-
-# from clinicadl.utils.maps_manager.maps_manager import MapsManager
-
-# SEED = 42
+from model import VGG16_2D, ResNet_2D, GOOGLE_2D, INCEPT_V3_2D, VGG_2D, EFFICIENT_2D, VIT_2D
+from model import CV3FC2_3D, CV5FC2_3D,  VGG16_3D, Res50_3D, ResNet_3D, autoencoder, freeze
 
 def seed_everything(seed):
     random.seed(seed)
@@ -53,8 +42,6 @@ def seed_everything(seed):
     # torch.backends.cudnn.deterministic = True
     # torch.cuda.manual_seed_all(seed) # if use multi-GPU
     # torch.backends.cudnn.benchmark = True
-
-
 
 class train():
     def __init__(self, args):
@@ -67,7 +54,7 @@ class train():
         self.epoch          = args.epoch
         self.batch          = args.batch
         self.fold_num       = args.fold_num
-        self.isAE           = args.ae
+        self.is_transfered  = args.ae
         self.wd             = args.weightDecay
         self.tolerance      = args.tolerance
         self.patience       = args.patience
@@ -91,7 +78,7 @@ class train():
         self.tf_lrn_opt = args.transfer_learning_optimizer
 
     def __call__(self, data_handler):
-        ae = 'ae_o' if self.isAE else 'ae_x'
+        ae = 'ae_o' if self.is_transfered else 'ae_x'
         self.best_param_dir = os.path.join(self.best_param_dir, ae)
         self.log_dir        = data_handler.getOuputDir()['log']
         self.check_dir      = data_handler.getOuputDir()['checkpoint']
@@ -389,7 +376,7 @@ class train():
                 dataset = { 'train' : iter(data_handler.gety()['train']) , 
                             'valid' : iter(data_handler.gety()['valid']) }
                 dataset_sizes = self.printDataNum(fold_idx, dataset)
-                if self.isAE and ('3' in self.dimension):
+                if self.is_transfered and ('3' in self.dimension):
                     # loadModel <- load Best model from AE preTrained.
                     # self.loss_name = 'ce'
                     # self.optimizer_name = 'asgd'
@@ -593,7 +580,7 @@ class train():
                             'valid' : iter(data_handler.gety()['valid']) }
                 dataset_sizes = self.printDataNum(fold_idx, dataset)
 
-                if self.isAE and ('3' in self.dimension):
+                if self.is_transfered and ('3' in self.dimension):
                     # loadModel <- load Best model from AE preTrained.
                     self.loss_name = 'nll'
                     self.optimizer_name = 'asgd'
@@ -827,7 +814,7 @@ class train():
         data_handler.setDataset('train')
         dataset_sizes = len(data_handler.getX()['train'])
         learning_rate = self.lr
-        if self.isAE : learning_rate = self.args.ae_learning_rate
+        if self.is_transfered : learning_rate = self.args.ae_learning_rate
         if self.isMerge:
             check = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
         else:
@@ -1199,30 +1186,30 @@ class train():
             elif self.model_name == "Incept_3D" : model = Inception3_3D(num_classes=self.classes)
             elif "eff" in self.model_name.lower() : model = EfficientNet3D.from_name("efficientnet-b4", override_params={'num_classes': 2}, in_channels=1)
             elif "res" in self.model_name.lower() : model = generate_model(model_depth=self.args.res_depth, n_classes=self.classes)# model = ResNet_3D(self.classes).to(self.device)
-            # elif 'vit' in self.model_name.lower() : model = VIT_3D(self.classes, self.isAE)
+            # elif 'vit' in self.model_name.lower() : model = VIT_3D(self.classes, self.is_transfered)
             else : raise ValueError("Choose correct model")
         else:
             if 'res' in self.model_name.lower():
-                model = ResNet_2D(self.classes, self.isAE, self.args.res_depth)
+                model = ResNet_2D(self.classes, self.is_transfered, self.args.res_depth)
             elif 'vgg' in self.model_name.lower():
                 vgg_depth = int(self.model_name.split('_')[1])
-                model = VGG_2D(self.classes, self.isAE, depth=vgg_depth)
-                # model = VGG16_2D(self.classes, self.isAE)
+                model = VGG_2D(self.classes, self.is_transfered, depth=vgg_depth)
+                # model = VGG16_2D(self.classes, self.is_transfered)
             elif 'google' in self.model_name.lower():
-                model = GOOGLE_2D(self.classes, self.isAE)
+                model = GOOGLE_2D(self.classes, self.is_transfered)
             elif 'incept' in self.model_name.lower():
-                model = INCEPT_V3_2D(self.classes, self.isAE)
+                model = INCEPT_V3_2D(self.classes, self.is_transfered)
             elif 'eff' in self.model_name.lower():
-                model = EFFICIENT_2D(self.classes, self.isAE)
+                model = EFFICIENT_2D(self.classes, self.is_transfered)
             elif 'vit' in self.model_name.lower():
-                model = VIT_2D(self.classes, self.isAE)
+                model = VIT_2D(self.classes, self.is_transfered)
         yield model.to(self.device)
 
     def loadModel(self, phase, fold_idx=None):
         '''phase : autoencoder/autoencoder_total/best/retrain'''
         import collections
         if phase in ['best', 'retrain'] :
-            ae = 'ae_o' if self.isAE else 'ae_x'
+            ae = 'ae_o' if self.is_transfered else 'ae_x'
             model_dir = os.path.join(self.check_dir, phase, ae)
             fold_dir = os.path.join(model_dir, "fold"+str(fold_idx))
             os.makedirs(fold_dir, exist_ok=True)
@@ -1267,7 +1254,7 @@ class train():
                 print(f"AE pre-trained model has been loaded.")
             else:
                 model.load_state_dict(checkpoint['model_state_dict'])
-                if phase == 'best' and self.isAE and '3' in self.dimension: # freezing when ae_transfer learning
+                if phase == 'best' and self.is_transfered and '3' in self.dimension: # freezing when ae_transfer learning
                     model = freeze(num_class=self.classes, model=model).to(self.device)
                 logging.info(f"Best model[{fold_idx}] has been loaded.")
                 print(f"Best model[{fold_idx}] has been loaded.")
@@ -1282,7 +1269,7 @@ class train():
         '''phase : autoencoder/autoencoder_total/best/retrain'''
 
         if phase in ['best', 'retrain'] :
-            ae = 'ae_o' if self.isAE else 'ae_x'
+            ae = 'ae_o' if self.is_transfered else 'ae_x'
             model_dir = os.path.join(self.check_dir, phase, ae)
             fold = f"fold{fold_idx}" if fold_idx is not None else "single_train" 
             fold_dir = os.path.join(model_dir, f"{fold}")
@@ -1317,7 +1304,7 @@ class train():
             with open(ae_result_name, "a") as f:
                 f.write(f"Epoch[{epoch}] MSELoss:{loss_epoch_mean:5g}\n")
         else:
-            ae   = "ae_o" if self.isAE else "ae_x"
+            ae   = "ae_o" if self.is_transfered else "ae_x"
             if fold_idx==0 and not None: 
                 raise ValueError("fold_idx should be larger than 0.")
             fold = f"fold{fold_idx}" if fold_idx is not None else "single_train"
@@ -1382,7 +1369,7 @@ class train():
 
     def saveAVGResults(self, total_Best_cm):
         f1,pcs,rcl,acc,ba,sp=[],[],[],[],[],[]
-        ae = 'ae_o' if self.isAE else 'ae_x'
+        ae = 'ae_o' if self.is_transfered else 'ae_x'
         result_dir = f"{self.result_dir}/valid/{ae}"
         os.makedirs(result_dir, exist_ok=True)
         file_name = os.path.join(result_dir, f"valid_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.txt")
@@ -1399,7 +1386,7 @@ class train():
         acc_mean, ba_mean,  sp_mean  = np.mean(acc), np.mean(ba),   np.mean(sp)
         
         with open(file_name, 'w') as f:
-            f.write(f"[{self.model_name}] - Dimension:{self.dimension}, Filter:{self.filter}, AE pre-train:{self.isAE}")
+            f.write(f"[{self.model_name}] - Dimension:{self.dimension}, Filter:{self.filter}, AE pre-train:{self.is_transfered}")
             f.write(f"{'SP':3}:{sp_mean:.5f}\n{'BA':3}:{ba_mean:.5f}, {'ACC':3}:{acc_mean:.6f}\n")
             f.write(f"{'PCS':3}:{pcs_mean:.5f}, {'RCL':3}:{rcl_mean:.5f}, {'F1':3}:{f1_mean:.5f}\n")
             f.write(f"\n")
@@ -1419,7 +1406,7 @@ class train():
             None
         '''
         def getPath(status, mode=None):
-            ae = 'ae_o' if self.isAE else 'ae_x'
+            ae = 'ae_o' if self.is_transfered else 'ae_x'
             
             result_dir = os.path.join(self.result_dir, ae, mode)
             os.makedirs(result_dir, exist_ok=True)
@@ -1452,9 +1439,9 @@ class train():
             f1, pcs, rcl, acc, sp, se = metric
             with open(path, 'w') as f:
                 if mode =='best':
-                    f.write(f"[{self.model_name}]-BestFold[{best_idx}]-{self.dimension}-{self.filter}-AE:{self.isAE}\n")
+                    f.write(f"[{self.model_name}]-BestFold[{best_idx}]-{self.dimension}-{self.filter}-AE:{self.is_transfered}\n")
                 else:
-                    f.write(f"[{self.model_name}]-Mean-{self.dimension}-{self.filter}-AE:{self.isAE}\n")
+                    f.write(f"[{self.model_name}]-Mean-{self.dimension}-{self.filter}-AE:{self.is_transfered}\n")
                 f.write(f"{'SP':3}:{sp :.5f}, {'SE':3}:{se :.5f}, {'ACC':3}:{acc :.6f}\n")
                 f.write(f"{'PCS':3}:{pcs :.5f}, {'RCL':3}:{rcl :.5f}, {'F1':3}:{f1 :.5f}\n")
                 f.write(f"\n")

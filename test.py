@@ -1,5 +1,3 @@
-from cProfile import label
-from genericpath import exists
 import logging
 import os
 import pandas as pd
@@ -11,23 +9,19 @@ import random
 import matplotlib.pyplot as plt
 import cv2
 import nibabel as nib
+from torch.utils.data import DataLoader
 
-from model_new import CV3FC2_3D, CV5FC2_3D,  VGG16_3D, Res50_3D, ResNet_3D, autoencoder, freeze
-from model_new import VGG16_2D, ResNet_2D, GOOGLE_2D, INCEPT_V3_2D, VGG_2D, EFFICIENT_2D, VIT_2D
-from StackedDAE import SAE
-from resnet import generate_model
+from utils import medcam
 from utils.vit import ViT
-from INCEPT_V3_3D import Inception3_3D
+from utils.resnet import generate_model
+from utils.evaluate import checking
+from utils.FocalLoss import FocalLoss
+from utils.getBestParam import getBestParam
+from utils.INCEPT_V3_3D import Inception3_3D
 from efficientnet_pytorch_3d import EfficientNet3D
 
-from utils.FocalLoss import FocalLoss
-
-from utils.evaluate      import checking
-from utils.FocalLoss     import FocalLoss
-from utils import medcam
-# from medcam import medcam
-from torch.utils.data import DataLoader
-from utils.getBestParam import getBestParam
+from model import VGG16_2D, ResNet_2D, GOOGLE_2D, INCEPT_V3_2D, VGG_2D, EFFICIENT_2D, VIT_2D
+from model import CV3FC2_3D, CV5FC2_3D,  VGG16_3D, Res50_3D, ResNet_3D, autoencoder, freeze
 
 def seed_everything(seed):
     random.seed(seed)
@@ -48,7 +42,7 @@ class test():
         self.epoch          = args.epoch
         self.batch          = args.batch
         self.fold_num       = args.fold_num
-        self.isAE           = args.ae
+        self.is_transfered  = args.tfl
         self.isMerge        = args.mergeDisease
         self.filter         = args.filter
         self.dimension      = args.dimension
@@ -120,7 +114,6 @@ class test():
                     check = checking(lss=self.loss_name, labels=label, isMerge=self.isMerge)        
                     gt, pd = self.get_gt_pd(fold_idx, testloader, phase, check)
                     total_gt.extend(gt)
-                    total_pd.extend(pd)
 
                     if self.classes>2:
                         metric, cfmx = check.Epoch(gt, pd)
@@ -384,26 +377,26 @@ class test():
             else : raise ValueError("Choose correct model")
         else:
             if 'res' in self.model_name.lower():
-                model = ResNet_2D(self.classes, self.isAE, self.args.res_depth)
+                model = ResNet_2D(self.classes, self.is_transfered, self.args.res_depth)
             elif 'vgg' in self.model_name.lower():
                 vgg_depth = int(self.model_name.split('_')[1])
-                model = VGG_2D(self.classes, self.isAE, depth=vgg_depth)
-                # model = VGG16_2D(self.classes, self.isAE)
+                model = VGG_2D(self.classes, self.is_transfered, depth=vgg_depth)
+                # model = VGG16_2D(self.classes, self.is_transfered)
             elif 'google' in self.model_name.lower():
-                model = GOOGLE_2D(self.classes, self.isAE)
+                model = GOOGLE_2D(self.classes, self.is_transfered)
             elif 'incept' in self.model_name.lower():
-                model = INCEPT_V3_2D(self.classes, self.isAE)
+                model = INCEPT_V3_2D(self.classes, self.is_transfered)
             elif 'eff' in self.model_name.lower():
-                model = EFFICIENT_2D(self.classes, self.isAE)
+                model = EFFICIENT_2D(self.classes, self.is_transfered)
             elif 'vit' in self.model_name.lower():
-                model = VIT_2D(self.classes, self.isAE)
+                model = VIT_2D(self.classes, self.is_transfered)
         yield model.to(self.device)
 
     def loadModel(self, phase, fold_idx=None):
         '''phase : autoencoder/autoencoder_total/best/retrain'''
         import collections
         if phase in ['best', 'retrain'] :
-            ae = 'ae_o' if self.isAE else 'ae_x'
+            ae = 'ae_o' if self.is_transfered else 'ae_x'
             model_dir = os.path.join(self.check_dir, phase, ae)
             fold_dir = os.path.join(model_dir, "fold"+str(fold_idx))
             os.makedirs(fold_dir, exist_ok=True)
@@ -441,7 +434,7 @@ class test():
                 print(f"AE pre-trained model has been loaded.")
             else:
                 model.load_state_dict(checkpoint['model_state_dict'])
-                # if phase == 'best' and self.isAE and self.dimension == '3d': # freezing when ae_transfer learning
+                # if phase == 'best' and self.is_transfered and self.dimension == '3d': # freezing when ae_transfer learning
                 #     model = freeze(num_class=self.classes, model=model).to(self.device)
                 logging.info(f"Best model[{fold_idx}] has been loaded.")
                 print(f"Best model[{fold_idx}] has been loaded.")
@@ -461,13 +454,13 @@ class test():
     #     '''phase : autoencoder/autoencoder_total/best/retrain'''
     #     import collections
     #     if phase in ['best', 'retrain'] :
-    #         ae = 'ae_o' if self.isAE else 'ae_x'
+    #         ae = 'ae_o' if self.is_transfered else 'ae_x'
     #         model_dir = os.path.join(self.check_dir, phase, ae)
     #         # model_dir = './Data/output/checkpoint/fromServer/5fold/flt_o/best/ae_o'
     #         fold = f"fold{fold_idx}" if fold_idx is not None else "single_train" 
     #         fold_dir = os.path.join(model_dir, f"{fold}")
     #         print(f'model_dir exist : {os.path.isdir(fold_dir)}')
-    #         if self.isAE == False:
+    #         if self.is_transfered == False:
     #             name = f"model_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.pth"
     #         else:
     #             name = f"model_b{self.batch}_{self.args.transfer_learning_optimizer}_{self.loss_name}_{self.lr:.0E}.pth"
@@ -596,7 +589,7 @@ class test():
 
     def saveResult(self, epoch, status, fold_idx, num_step, loss_epoch, metric):
         result_dir = os.path.join(self.result_dir, status)
-        if self.isAE: 
+        if self.is_transfered: 
             test_result_dir  = os.path.join(result_dir, f"ae_o")
         else: 
             test_result_dir  = os.path.join(result_dir, f"ae_x")
@@ -634,7 +627,7 @@ class test():
         '''
         def getPath(status, mode=None):
             result_dir = f"./result/{self.dimension}/{self.model_name}/{self.filter}/{status}"
-            if self.isAE:
+            if self.is_transfered:
                 result_dir = os.path.join(result_dir, 'ae_o')
             else: 
                 result_dir = os.path.join(result_dir, 'ae_x')
@@ -670,9 +663,9 @@ class test():
             f1, pcs, rcl, acc, sp, se = metric
             with open(path, 'w') as f:
                 if mode =='best':
-                    f.write(f"[{self.model_name}]-BestFold[{best_idx}]-{self.dimension}-{self.filter}-AE:{self.isAE}\n")
+                    f.write(f"[{self.model_name}]-BestFold[{best_idx}]-{self.dimension}-{self.filter}-AE:{self.is_transfered}\n")
                 else:
-                    f.write(f"[{self.model_name}]-Mean-{self.dimension}-{self.filter}-AE:{self.isAE}\n")
+                    f.write(f"[{self.model_name}]-Mean-{self.dimension}-{self.filter}-AE:{self.is_transfered}\n")
                 f.write(f"{'SP':3}:{sp :.5f}, {'SE':3}:{se :.5f}, {'ACC':3}:{acc :.6f}\n")
                 f.write(f"{'PCS':3}:{pcs :.5f}, {'RCL':3}:{rcl :.5f}, {'F1':3}:{f1 :.5f}\n")
                 f.write(f"\n")
