@@ -356,7 +356,7 @@ class Data_Handler(Dataset):
         options = f'{disease}/{model}/{filtering}/{fold_num}/{flt}/{classification}'
         return options
 
-    def getInputDataPath(self):
+    def get_input_path(self):
         return {'data':self.__input_data_path, 'lable':self.__input_label_path}
 
     # from this part, all the methods are for the Dataset in pytorch.
@@ -481,7 +481,7 @@ class Data_Handler(Dataset):
         current_data_dict = {}
         
         for idx, patient in enumerate(self.get_patients()):
-            filename = os.path.join(self.getInputDataPath()['data'], f"{patient}.png")
+            filename = os.path.join(self.get_input_path()['data'], f"{patient}.png")
             im=Image.open(filename)
             if self.__is_patch:
                 current_data_dict[patient] = self.get_data_dict()[patient]
@@ -556,7 +556,7 @@ class Data_Handler(Dataset):
         current_data_dict = {}
         patients = self.get_patients()
         for idx, patient in enumerate(patients):
-            niftipath = os.path.join(self.getInputDataPath()['data'], f"{patient}.nii.gz")
+            niftipath = os.path.join(self.get_input_path()['data'], f"{patient}.nii.gz")
             nifti = nib.load(niftipath)
             nifti.uncache()
             niftilist.append(next(self.minMaxNormalize(nifti, patient)))
