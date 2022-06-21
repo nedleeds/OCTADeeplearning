@@ -54,7 +54,7 @@ class train():
         self.epoch          = args.epoch
         self.batch          = args.batch
         self.fold_num       = args.fold_num
-        self.is_transfered  = args.ae
+        self.is_transfered  = args.tfl
         self.wd             = args.weightDecay
         self.tolerance      = args.tolerance
         self.patience       = args.patience

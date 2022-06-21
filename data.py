@@ -11,7 +11,7 @@ from PIL import Image
 from sklearn.model_selection import StratifiedKFold
 from torchvision import transforms
 from torch.utils.data import Dataset
-
+from utils.progress_bar import progress_bar
 
 class Data_Handler(Dataset):
     def __init__(self, args):
@@ -46,66 +46,60 @@ class Data_Handler(Dataset):
         self.__flatten = args.flatten
         self.__patients = []
         self.__ae_data_num = args.ae_data_num
-        self.is_patch = args.patch_mode
-        self.data_path = args.data_path
+        self.__is_patch = args.patch_mode
+        self.__data_path = args.data_path
 
     def __call__(self):
-        self.setSkipList()
-        self.checkArguments()
+        self.set_skip_list()
+        self.check_loaded_path()
         self.loadLabel_setData()
         self.splitTrainTest()
         self.doKFold()
         self.setOutputDir()
         print()
 
-    def checkArguments(self):
+    def set_skip_list(self):
         '''
-        check path and arguments. (dim=2d/3d, flter=OG/Curvelet, layer=SRL/)
+        The Retinal data can have a noise or an error 
+        when they scanned. So, we've check the data
+        and remove the crashed or partially broken data.
+        
+        For 3D Autoencoder pre-training, we need to 
+        consider the topological and volumetric structure.
+        So, the highly tilted retinal volume data had been excepted.
         '''
-        dim = self.__dim
-        flter = self.__filter
-        layer = self.__layer
-        data_path = self.__input_data_path
-        model = self.__model
-
-        if dim=='2d':
-            assert 'dataset' in data_path, f"Set correct data_path({data_path}) for dimension({dim})."
-            if flter == 'OG':
-                assert 'OG' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
-            else:
-                assert 'Curvelet' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
-            assert '2d' in model.lower(), f"Set corret model({model}) for {dim}."
-
-        else:
-            assert 'Nifti' in data_path, f"Set correct data_path({data_path}) for dimension({dim})."
-            if flter == 'OG':
-                if layer == 'SRL':
-                    assert 'SRL' in data_path.upper(), f"Set correct data_path({data_path}) for filter({flter})."
-                elif layer == 'DRL':
-                    assert 'DRL' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
-                elif layer =='Total':
-                    assert 'OCTA'in data_path, f"Set correct data_path({data_path}) for filter({flter})."
-                else:
-                    raise ValueError(f"Set correct layer({layer}) for filter({flter}), dim({dim})")
-            else:
-                assert 'Curvelet' in data_path, f"Set correct data_path({data_path}) for filter({flter})."
-                # curvelet --> need to make SRL, DRL, total
-
-            assert '3d' in model.lower(), f"Set corret model({model}) for {dim}."
-
-    def setSkipList(self):
-        skip = []
-        # skip = [10219, 10220]
         skip = [10035, 10057, 10114, 10219, 10220]
+        
         if self.__pre_train:
+            
             skip.extend([10039, 10046, 10055, 10074, 10080,
         	             10089,	10111, 10212, 10224, 10257, 
                          10285, 10288])
-        # 10035, 10039, 10057, 10074, 10080, 
-        # 10089, 10114, 10219, 10220, 10224, 
-        # 10257, 10285, 10288
 
         self.__skipList = skip
+
+    def check_loaded_path(self):
+        '''
+        Checking loading data path.
+        Basically, 
+        for 2D, the '.png' is extension.
+        for 3D, the '.nii' is extension.
+        '''
+                            
+        data_dir = self.__input_data_path
+        
+        extract_extension = lambda x: ('.').join(x.split('.')[1:])
+        extension_list = [extract_extension(x) for x in os.listdir(data_dir)]
+        extension = set(extension_list)
+        
+        if len(extension)>1:
+            print("There are different types of data in data_dir.")
+
+        cnt = {k:extension_list.count(k) for k in extension if k != ''}
+        
+        print(f'Data directory : {data_dir}')
+        print(r'{File extension: Numbers} :', f'{cnt}')
+
 
     def loadLabel_setData(self):
         label = self.loadLabel()
@@ -484,7 +478,7 @@ class Data_Handler(Dataset):
         for idx, patient in enumerate(self.get_patients()):
             filename = os.path.join(self.getInputDataPath()['data'], f"{patient}.png")
             im=Image.open(filename)
-            if self.is_patch:
+            if self.__is_patch:
                 current_data_dict[patient] = self.getDataDict()[patient]
                 img_arr = np.asarray(im)
                 T = (80*3/np.mean(img_arr))
@@ -532,7 +526,7 @@ class Data_Handler(Dataset):
             else:
                 image_list.append(transform(im))
                 current_data_dict[patient] = self.getDataDict()[patient]
-            T = 'no patch' if not self.is_patch else T
+            T = 'no patch' if not self.__is_patch else T
             print(f"{f'[{idx+1:03d}] image get':16} : {self.getDataDict()[patient]} - ", T)
 
         self.setInputShape(input_shape = image_list[0].shape)
@@ -540,8 +534,8 @@ class Data_Handler(Dataset):
         yield image_list
 
     def save_patch_img(self, patient, image_list):
-        save_dir = os.path.join(f'{self.data_path}/Patch_0318_P16_CLAHE', f'{patient}')
-        # save_dir = os.path.join(f'{self.data_path}/Patch_old_0316', f'{patient}')
+        save_dir = os.path.join(f'{self.__data_path}/Patch_0318_P16_CLAHE', f'{patient}')
+        # save_dir = os.path.join(f'{self.__data_path}/Patch_old_0316', f'{patient}')
         os.makedirs(save_dir, exist_ok=True)
         
         for idx, img in enumerate(image_list):
@@ -610,7 +604,7 @@ class Data_Handler(Dataset):
                     if self.__pre_train:
                         label2Num.extend([int(disease != 'NORMAL'), patient])
                     else:
-                        if self.is_patch:
+                        if self.__is_patch:
                             patch_num = 4 if patient < 10301 else 4
                             label2Num.extend([int(disease != 'NORMAL')]*patch_num)
                         else:
