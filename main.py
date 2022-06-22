@@ -22,9 +22,9 @@ def str_to_bool(v):
 def getArguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_path', nargs='?', default="./data/Nifti/In/Transformed/OCTA_SRL_256_V2", type=str, 
+    parser.add_argument('--data_path', nargs='?', default="./data/dataset/OG", type=str, 
                         help='Enter the data path.(default: "./data/Nifti/In/FOV_66/SRL")')
-                        # 2d - ./data/dataset/OG
+                        # 2d - ./data/dataset/OG - for patch mode
                         # 2d - ./data/dataset/OG/OCTA_Enface
                         # 3d - ./data/Nifti/In/FOV_66/SRL - 640 but this gonna crop the volume to 256
                         # 3d before registration - ./data/Nifti/In/Transformed/OCTA_SRL_NO_REG
@@ -36,16 +36,16 @@ def getArguments():
     parser.add_argument('--fold_num', nargs='?', default=5, type=int, 
                         help='Enter the # of folds.(default: 5)')
 
-    parser.add_argument('--flatten', nargs='?', default='True', type=str_to_bool,
+    parser.add_argument('--flatten', nargs='?', default='False', type=str_to_bool,
                         help='Flatten for 3D Volumes: True or False')
 
     parser.add_argument('--test_rate', nargs='?', default=0.15, type=float,
                         help='Set the rate of train/test : 0.1, 0.15, 0.2, 0.25, 0.3')
 
-    parser.add_argument('--dimension', nargs='?', default='3d', type=str,
+    parser.add_argument('--dimension', nargs='?', default='2d', type=str,
                         help='Choose the dimension between 2d/3d')
 
-    parser.add_argument('--model', nargs='?', default='Res_10_3D', type=str,
+    parser.add_argument('--model', nargs='?', default='VGG_19_2D', type=str,
                         help='Model name : VGG_16_2D, VGG_19_2D, \
                               Res_10_2D, Res_18_2D, Res_50_2D, VIT_2D,\
                               Incept_v3_2D, Google_2D,\
@@ -65,7 +65,7 @@ def getArguments():
     parser.add_argument('--epoch', nargs='?', default=200, type=int,
                         help='Set the epoch Number')
 
-    parser.add_argument('--batch', nargs='?', default=1, type=int, #32 for ae_pre_train
+    parser.add_argument('--batch', nargs='?', default=32, type=int, #32 for ae_pre_train
                         help='Set the batch size')
 
     parser.add_argument('--disease', nargs='?', default="NORMAL AMD CSC DR RVO", type=str,
@@ -83,7 +83,7 @@ def getArguments():
     parser.add_argument('--tfl', nargs='?', default='False', type=str_to_bool,
                         help='Set the transfer learning : True/False')
 
-    parser.add_argument('--ae_pre_train', nargs='?', default='True', type=str_to_bool,
+    parser.add_argument('--ae_pre_train', nargs='?', default='False', type=str_to_bool,
                         help='Autoencoder pre-traning : True/False')
     
     parser.add_argument('--weightDecay', nargs='?', default=0.15, type=float, #0.15
@@ -101,7 +101,7 @@ def getArguments():
     parser.add_argument('--transfer_learning_optimizer', nargs='?', default='adam', type=str, 
                         help='asgd, sgd, rmsp, adam, adamw, adadelta, adagrad') # asgd for ae_x
 
-    parser.add_argument('--patch_mode', default='False', type=str_to_bool)
+    parser.add_argument('--patch_mode', default='True', type=str_to_bool)
     
     parser.add_argument('--test_mode' , default='False', type=str_to_bool)
     
@@ -112,7 +112,11 @@ def getArguments():
     parser.add_argument('--num_class', nargs='?', default=2, type=int)
 
     args = parser.parse_args()
+    
+    # The date is save like 2022_0622. This can be used for save dir name.
     args.date = datetime.today().strftime("%Y_%m%d")
+    
+    # The depth of ResNet can be modified with this argument.
     if 'res' in args.model.lower():
         args.res_depth = int(args.model.split('_')[1])
         

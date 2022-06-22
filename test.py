@@ -79,7 +79,7 @@ class test():
 
         for phase in ['valid', 'test']: #, 'test']:
             if phase == 'test':
-                data_handler.setDataset(phase) ###
+                data_handler.set_dataset(phase) ###
                 self.current_disease = sorted(list(data_handler.getDiseaseLabel().keys()))
                 testloader  = DataLoader(data_handler, batch_size=batch)
 
@@ -106,7 +106,7 @@ class test():
             for fold_idx in range(1, self.fold_num+1):
                 self.gcam_dir = self.roc_plot_dir+(f"/attention_maps/{phase}/fold{fold_idx}" if fold_idx is not None else "single_train")
                 if 'valid' in phase:
-                    data_handler.setDataset(phase, fold_idx)
+                    data_handler.set_dataset(phase, fold_idx)
                     testloader = DataLoader(data_handler, batch_size=batch)
                     self.current_disease = sorted(list(data_handler.getDiseaseLabel().keys()))
 

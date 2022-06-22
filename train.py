@@ -289,11 +289,11 @@ class train():
         self.ae_data_num = 483
         # self.optimizer_name = self.args.transfer_learning_optimizer
 
-        # data_handler.setDataset('train', data_num= 130 if self.ae_data_num == 500 else None) # fold_idx == None -> train 전체 호출.
+        # data_handler.set_dataset('train', data_num= 130 if self.ae_data_num == 500 else None) # fold_idx == None -> train 전체 호출.
         data_handler.setSkipList()
         data_handler.loadLabel_setData()
 
-        data_handler.setDataset('total')
+        data_handler.set_dataset('total')
         self.total_size = len(data_handler.getX()['total'])
         
         trainloader = DataLoader(data_handler, batch_size=self.pre_trained_batch)
@@ -350,8 +350,8 @@ class train():
     def multi_class(self, data_handler):
         for fold_idx in range(1, self.fold_num+1):
             seed_everything(34)
-            data_handler.setDataset('train', fold_idx=fold_idx)
-            data_handler.setDataset('valid', fold_idx=fold_idx)
+            data_handler.set_dataset('train', fold_idx=fold_idx)
+            data_handler.set_dataset('valid', fold_idx=fold_idx)
             self.input_shape = data_handler.getInputShape()
             self.classes = len(data_handler.getDiseaseLabel())
             self.current_disease = sorted(list(data_handler.getDiseaseLabel().keys()))
@@ -421,7 +421,7 @@ class train():
                     # metrics = {'train':None, 'valid':None}
                     model.zero_grad()
                     for phase in ['train', 'valid']:
-                        data_handler.setPhase(phase)
+                        data_handler.set_phase(phase)
                         epoch_gt, epoch_pd = [], []
                         if phase == 'train' : 
                             model.train()  # 모델을 학습 모드로 설정
@@ -553,8 +553,8 @@ class train():
         check = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
         for fold_idx in range(1, self.fold_num+1):
             seed_everything(34)
-            data_handler.setDataset('train', fold_idx=fold_idx)
-            data_handler.setDataset('valid', fold_idx=fold_idx)
+            data_handler.set_dataset('train', fold_idx=fold_idx)
+            data_handler.set_dataset('valid', fold_idx=fold_idx)
             # self.disease_index = data_handler.sortTable(reverse=False)
             # self.index_disease = data_handler.sortTable(reverse=True)
             # self.label_table   = [self.disease_index, self.index_disease]
@@ -624,7 +624,7 @@ class train():
                     # metrics = {'train':None, 'valid':None}
                     model.zero_grad()
                     for phase in ['train', 'valid']:
-                        data_handler.setPhase(phase)
+                        data_handler.set_phase(phase)
                         epoch_gt, epoch_pd = [], []
                         if phase == 'train' : 
                             model.train()  # 모델을 학습 모드로 설정
@@ -632,7 +632,7 @@ class train():
                             model.eval()   # 모델을 평가 모드로 설정
                         epoch_loss = 0.0
                         
-                        for step, (train_X, train_y) in enumerate(DataLoader(data_handler, batch_size=self.batch, shuffle=True)):                            
+                        for step, (train_X, train_y) in enumerate(DataLoader(data_handler, batch_size=self.batch, shuffle=True)):
                             train_X = train_X[0] if '2' in self.dimension else train_X[0].unsqueeze_(1).to(self.device)
                             train_y = train_y[0].long().to(self.device)
                             # print(f'step:{step}-{train_y}')
@@ -811,7 +811,7 @@ class train():
 
 
     def retrain(self, data_handler):
-        data_handler.setDataset('train')
+        data_handler.set_dataset('train')
         dataset_sizes = len(data_handler.getX()['train'])
         learning_rate = self.lr
         if self.is_transfered : learning_rate = self.args.ae_learning_rate
@@ -949,9 +949,9 @@ class train():
         self.lr = self.pre_trained_lr
         self.batch = self.pre_trained_batch
         # lr = 0.001(default) -> 0.0003 -> 0.003 -> 0.01 -> +scheduler
-        # data_handler.setDataset('train', data_num= 130 if self.ae_data_num == 500 else None) # fold_idx == None -> train 전체 호출.
+        # data_handler.set_dataset('train', data_num= 130 if self.ae_data_num == 500 else None) # fold_idx == None -> train 전체 호출.
         # self.total_size = len(data_handler.getX()['train'])
-        data_handler.setDataset('total')
+        data_handler.set_dataset('total')
         self.total_size = len(data_handler.getX()['total'])
         trainloader = DataLoader(data_handler, batch_size=self.batch)
         model = next(self.getModel()) 

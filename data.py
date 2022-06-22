@@ -76,7 +76,7 @@ class Data_Handler(Dataset):
         	             10089,	10111, 10212, 10224, 10257, 
                          10285, 10288])
 
-        self.__skipList = skip
+        self.__skip_list = skip
 
     def check_loaded_path(self):
         '''
@@ -113,7 +113,7 @@ class Data_Handler(Dataset):
             '''
             set data dictionary = {patient:disease}
             '''
-            if patient not in self.__skipList:
+            if patient not in self.__skip_list:
                 if disease in self.__selected_disease:
                     self.__data_dict[int(patient)]=disease 
             else:
@@ -136,6 +136,11 @@ class Data_Handler(Dataset):
         print(f'Grouped data number : {self.__grouped_num}')
 
     def split_train_test(self):
+        '''
+        This function is splitting the data set to Train/Test.
+        Utilizing Stratified Cross Validation, 
+        the disease label class will have a even distribution.
+        '''
         splits = int(np.ceil(1/self.__test_rate))
         print(f'Test rate(n_splits) : {self.__test_rate}({splits})')
         print(f'{"[ Train/Test Split ]":=^60}')
@@ -171,29 +176,40 @@ class Data_Handler(Dataset):
         print()
 
     def set_output_dir(self):
-            options = self.get_options()
-            log_dir = os.path.join('./Data/output/log', options)
-            check_dir = os.path.join('./Data/output/checkpoint', options)
-            result_dir = os.path.join('./Data/output/result', options)
-            tb_writer_dir = os.path.join('./Data/output/tensorboard', options)
-            best_parameter_dir = os.path.join('./Data/output/best_parameter', options)
-            roc_plot_dir = os.path.join('./Data/output/roc_plot', options)
+        '''
+        Set the output directory path.
+        Based on the arguements that you've set.
+        The 'self.get_options()' will return that oprtion.
+        '''
+        options = self.get_options()
+        log_dir = os.path.join('./Data/output/log', options)
+        check_dir = os.path.join('./Data/output/checkpoint', options)
+        result_dir = os.path.join('./Data/output/result', options)
+        tb_writer_dir = os.path.join('./Data/output/tensorboard', options)
+        best_parameter_dir = os.path.join('./Data/output/best_parameter', options)
+        roc_plot_dir = os.path.join('./Data/output/roc_plot', options)
 
-            os.makedirs(log_dir, exist_ok=True)
-            os.makedirs(check_dir, exist_ok=True)
-            os.makedirs(result_dir, exist_ok=True)
-            os.makedirs(tb_writer_dir, exist_ok=True)
-            os.makedirs(best_parameter_dir, exist_ok=True)
-            os.makedirs(roc_plot_dir, exist_ok=True)
+        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(check_dir, exist_ok=True)
+        os.makedirs(result_dir, exist_ok=True)
+        os.makedirs(tb_writer_dir, exist_ok=True)
+        os.makedirs(best_parameter_dir, exist_ok=True)
+        os.makedirs(roc_plot_dir, exist_ok=True)
 
-            self.__output_dir = {'log':log_dir,  
-                                'checkpoint':check_dir, 
-                                'result':result_dir,
-                                'tensorboard':tb_writer_dir,
-                                'best_parameter':best_parameter_dir,
-                                'roc_plot':roc_plot_dir}
+        self.__output_dir = {'log':log_dir,  
+                            'checkpoint':check_dir, 
+                            'result':result_dir,
+                            'tensorboard':tb_writer_dir,
+                            'best_parameter':best_parameter_dir,
+                            'roc_plot':roc_plot_dir}
 
     def read_csv(self, phase, fold_idx=None):
+        '''
+        Read the label csv file.
+        This csv file has patients lists and their disease info.
+        For Kfold cross validation,
+        Each fold has been saved seperately for reproducibility of result.
+        '''
         if fold_idx==None:
             if phase == 'total':
                 self.set_total_path('total', './Data/input/total.csv')
@@ -248,7 +264,8 @@ class Data_Handler(Dataset):
     def save_split_info(self, total_patients, train_indices, test_indices, fold_idx=None):
         '''
         save the 'train', 'test' data.
-        !!! 'test' will be 'validation' when do KFold !!!
+        Total Data -> 'Train / Test' (when fold_idx=None)
+        Train Data -> 'Train / Validation' (when fold_idx!=None)
         '''
         if fold_idx ==None:
             split = ['train', 'test']
@@ -263,8 +280,9 @@ class Data_Handler(Dataset):
 
     def save_info(self, phase, patients_set, fold_idx=None):
         '''
-        This program handling the data with label data.
-        So, we save the split info for the txt file.
+        This program is operated with label data.
+        We don't call all the volume or image data before training.
+        So, we save the split-info to the txt-file.
         Save data : {'index', 'patient', 'disease'}
         Save dir = './Data/input'
         Save path is based on below features.
@@ -347,6 +365,10 @@ class Data_Handler(Dataset):
         return self.__total_path
 
     def get_options(self):
+        '''
+        Set the options for the output directory.
+        Base on the arguments that you set.
+        '''
         disease = self.__disease_dir
         model = self.__model
         filtering = self.__filter
@@ -357,28 +379,41 @@ class Data_Handler(Dataset):
         return options
 
     def get_input_path(self):
+        '''
+        Return the input_data info which is
+        data_path <--> label(patient, disease)
+        '''
         return {'data':self.__input_data_path, 'lable':self.__input_label_path}
 
     # from this part, all the methods are for the Dataset in pytorch.
-    def setDataset(self, phase, fold_idx=None, data_num=None):
+    def set_dataset(self, phase, fold_idx=None, data_num=None):
+        '''
+        Customize function for the Torch-Dataset.
+        [Data X]
+        For 2D, get Image data(2d array) from saved dir.
+        For 3D, get Nifti data(3d array) from saved dir.
+        [Data y]
+        Load the label data and set them for the y.
+        This will use the 'one-hot encoding'.
+        '''
         # pre-load dataset.
-        assert phase!=None or fold_idx!=None, \
-            "Set the phase and fold_idx for getDataset."
+        assert phase!=None or fold_idx!=None,\
+               "Set the phase and fold_idx for get_dataset."
 
-        self.setPhase(phase)
+        self.set_phase(phase)
         self.set_patients(phase, fold_idx, data_num)
 
         if self.__dim=='2d':
-            self.__X[phase] = list(self.getImage(phase, fold_idx))[0]
+            self.__X[phase] = list(self.get_image(phase, fold_idx))[0]
         else:
             self.__X[phase] = list(self.getNifti(phase, fold_idx))[0]
 
         self.__y[phase] = list(self.getOneHot())
 
-    def getDataset(self, phase):
+    def get_dataset(self, phase):
         return self.__X[phase], self.__y[phase]
 
-    def setCurrentData(self, data_dict):
+    def set_current_data(self, data_dict):
         '''
         data_dict = {patient:disease} of current phase & fold.
         '''
@@ -396,10 +431,10 @@ class Data_Handler(Dataset):
     def getPhase(self):
         return self.__phase
     
-    def setPhase(self, phase):
+    def set_phase(self, phase):
         self.__phase =phase
         
-    def setInputShape(self, input_shape):
+    def set_input_shape(self, input_shape):
         self.__input_shape = input_shape
         
     def getInputShape(self):
@@ -437,115 +472,161 @@ class Data_Handler(Dataset):
         return list(X), list(y)
 
     def set_patients(self, phase, fold_idx, data_num=None):
+        '''
+        This function is loading the saved fold.csv and set the patients.
+        Load : each fold patients & disease list - './Data/input/...'
+        Set  : self.__patients = [10001, 10002, ... ]
+        '''
         import random
         if data_num is None:
             self.__patients = sorted(self.read_csv(phase, fold_idx))
             if phase == 'total':
-                self.__patients = [p for p in self.__patients if p not in self.__skipList]
+                self.__patients = [p for p in self.__patients if p not in self.__skip_list]
         else:
             random.seed(5)
             self.__patients = sorted(random.sample(self.read_csv(phase, fold_idx), data_num))
-        # import random
-        # patients = self.read_csv(phase, fold_idx)
-        # random.shuffle(patients)
-        # self.__patients=patients
 
     def get_patients(self):
+        '''
+        return self.__patients = [10001, 10002, ... ]
+        '''
         return self.__patients
 
-    def getImage(self, phase, fold_idx):
+    def get_image(self, phase, fold_idx):
         '''
         phase = 'train', 'test', f'fold[fold_idx]':{'train', 'valid}'
         load 2D image from path of selected phase.
         '''
+        def get_transformer():
+            if 'vgg' in self.args.model.lower():
+                transform = transforms.Compose([transforms.ToTensor(),
+                                                transforms.Normalize((0.5), (0.5))])
+            elif 'vit' in self.args.model.lower():
+                transform = transforms.Compose([transforms.Resize((224, 224)),
+                                                transforms.ToTensor(),
+                                                transforms.Normalize((0.5), (0.5))])
+            elif 'res' in self.args.model.lower():
+                transform = transforms.Compose([transforms.Resize((304, 304)),
+                                                transforms.ToTensor(),
+                                                transforms.Normalize((0.5), (0.5))])
+            elif 'incept' in self.args.model.lower():
+                transform = transforms.Compose([transforms.Resize((299, 299)),
+                                                transforms.ToTensor(),
+                                                transforms.Normalize((0.5), (0.5))])
+            else:
+                transform = transforms.Compose([transforms.ToTensor(),
+                                                transforms.Normalize((0.5), (0.5))])
+            return transform
+        
+        def image_resize_info(patient, image_size):
+            '''
+            FOV66 - 400x400 => patch_num 16
+            FOV33 - 304x304 => patch_num 4
+            to make them similar resolutions.
+            The row, col size are defined by patch_num respectively.
+            '''
+            patch_num = 4
+            row_size = int(image_size[0]//np.sqrt(patch_num))
+            col_size = int(image_size[1]//np.sqrt(patch_num))
+            print(f'{patient} og->resized : {image_size}',end='->')
+            return row_size, col_size, patch_num
+        
+        def image_clipping(image_arr):
+            '''
+            Clipping set min/max intensity has matched to
+            specific intensity value from percentage of total
+            intensity. The reason we use this process is when
+            we adap min-max normalize without this, the 255 could
+            be the max and this value could be the noise.
+            So for proper min-max normalization, we use this process.
+            '''
+            arr = image_arr.copy()
+            lower = np.percentile(arr[np.where(arr > 0)], 5)
+            upper = np.percentile(arr[np.where(arr > 0)], 99.9)
 
-        image_list = []
-        if 'vgg' in self.args.model.lower():
-            transform = transforms.Compose([transforms.ToTensor(),
-                                            transforms.Normalize((0.5), (0.5))])
-        elif 'vit' in self.args.model.lower():
-            transform = transforms.Compose([transforms.Resize((224, 224)),
-                                            transforms.ToTensor(),
-                                            transforms.Normalize((0.5), (0.5))])
-        elif 'res' in self.args.model.lower():
-            transform = transforms.Compose([transforms.Resize((304, 304)),
-                                            transforms.ToTensor(),
-                                            transforms.Normalize((0.5), (0.5))])
-        elif 'incept' in self.args.model.lower():
-            transform = transforms.Compose([transforms.Resize((299, 299)),
-                                            transforms.ToTensor(),
-                                            transforms.Normalize((0.5), (0.5))])
-        else:
-            transform = transforms.Compose([transforms.ToTensor(),
-                                            transforms.Normalize((0.5), (0.5))])
+            arr_clip_up_low = image_arr.copy()
+            arr_clip_up_low[lower>arr_clip_up_low] = 0
+            arr_clip_up_low[upper<arr_clip_up_low] = int(upper)
+            
+            # # min-max
+            # arr_clip_up_low = np.uint8((arr_clip_up_low - arr_clip_up_low.min()) / 
+            #                             (arr_clip_up_low.max()-arr_clip_up_low.min())*255)
+            return arr_clip_up_low
+        
+        def set_resized_image_list(image_arr, image_list_save):
+            pil_img = Image.fromarray(np.uint8(image_arr))
+            pil_img_resized = pil_img.resize((100, 100), Image.NEAREST)
+
+            image_list.append(transform(np.asarray(pil_img_resized)))
+            image_list_save.append(np.asarray(pil_img_resized))
+            return image_list_save
+        
+        def get_patch_images(patient, image):
+            current_data_dict[patient] = self.get_data_dict()[patient]
+            img_arr = np.asarray(image) if patient > 10300 else np.asarray(image)[100:300, 100:300]
+            img_size = img_arr.shape
+            row_size, col_size, patch_num = image_resize_info(patient, img_size)
+            # threshold : utilizing img_arr to adapt 'each patient'
+            threshold = (256/np.mean(img_arr))
+            image_list_save = []
+            cnt = 0
+            
+            # FOV66 needs to be FOV33 -> Center cropping.
+            for row in range(int(np.sqrt(patch_num))):
+                for col in range(int(np.sqrt(patch_num))):
+                    # crop patch.
+                    img_arr_ = img_arr[(row*row_size):(row*row_size)+row_size,
+                                       (col*col_size):(col*col_size)+col_size]
+                    cnt += 1
+                    if patient < 10301:
+                        '''
+                        The FOV66(10001~10300) image has different
+                        contrast from FOV33(10301~10500).
+                        This process is needed to improve the performace.
+                        Control the contrast : 
+                        CLAHE, threshold -> base on the each patient image property.
+                        '''
+                        # if cnt in [6,7,10,11]: # center 4 Images.
+                        arr_clip_up_low = image_clipping(img_arr_)
+                        # Contrast control - CLAHE
+                        clahe = cv2.createCLAHE(clipLimit=threshold, tileGridSize=(4, 4))
+                        arr_clip_up_low = clahe.apply(arr_clip_up_low)
+                        image_list_save = set_resized_image_list(arr_clip_up_low, image_list_save)
+                    else:
+                        image_list_save = set_resized_image_list(img_arr_, image_list_save)
+
+            return image_list_save, threshold
+        
         current_data_dict = {}
+        image_list = []
+        transform = get_transformer()
         
         for idx, patient in enumerate(self.get_patients()):
             filename = os.path.join(self.get_input_path()['data'], f"{patient}.png")
-            im=Image.open(filename)
+            image=Image.open(filename)
             if self.__is_patch:
-                current_data_dict[patient] = self.get_data_dict()[patient]
-                img_arr = np.asarray(im)
-                T = (80*3/np.mean(img_arr))
-                img_size = img_arr.shape
-                print(f'{patient} og->resized : {img_size}',end='->')
-                patch_num = 16 if patient < 10301 else 4
-                row_size, col_size = (int(img_size[0]//np.sqrt(patch_num)), int(img_size[1]//np.sqrt(patch_num)))
-                print(f'({row_size}, {col_size})')
-                image_list_save = []
-                cnt = 0
-                for row in range(int(np.sqrt(patch_num))):
-                    for col in range(int(np.sqrt(patch_num))):
-                        img_arr_ = img_arr[(row*row_size):(row*row_size)+row_size, (col*col_size):(col*col_size)+col_size]
-                        cnt += 1
-                        if patient < 10301:
-                            if cnt in [6,7,10,11]:
-                                arr = img_arr_
-                                # arr_og = img_arr_
-                                lower = np.percentile(arr[np.where(arr > 0)], 1)
-                                upper = np.percentile(arr[np.where(arr > 0)], 99.94)
-
-                                arr_clip_up_low = np.zeros(np.shape(arr))
-                                arr_clip_up_low[(lower <= arr) & (arr <= upper)] = arr[(lower <= arr) & (arr <= upper)]
-                                arr_clip_up_low = np.uint8((arr_clip_up_low - arr_clip_up_low.min()) / (arr_clip_up_low.max()-arr_clip_up_low.min())*255)
-
-                                # contrast limit가 2이고 title의 size는 8X8
-                                clahe = cv2.createCLAHE(clipLimit=T, tileGridSize=(4,4)) # T=5
-                                arr_clip_up_low = clahe.apply(arr_clip_up_low)
-                                img_arr_ = arr_clip_up_low
-                                pil_img = Image.fromarray(np.uint8(img_arr_))
-                                # pil_img = Image.fromarray(np.uint8(arr_og))
-                                pil_img_resized = pil_img.resize((100, 100), Image.NEAREST)
-
-                                image_list.append(transform(np.asarray(pil_img_resized)))
-                                image_list_save.append(np.asarray(pil_img_resized))
-                        else:
-                            pil_img = Image.fromarray(np.uint8(img_arr_))
-                            pil_img_resized = pil_img.resize((100, 100), Image.NEAREST)
-
-                            image_list.append(transform(np.asarray(pil_img_resized)))
-                            image_list_save.append(np.asarray(pil_img_resized))
-                
-                self.save_patch_img(patient, image_list_save)
-
+                image_list, threshold = get_patch_images(patient, image)
+                self.save_patch_img(patient, image_list)
+                image_list = [ transform(i) for i in image_list ]
             else:
-                image_list.append(transform(im))
+                image_list.append(transform(image))
                 current_data_dict[patient] = self.get_data_dict()[patient]
-            T = 'no patch' if not self.__is_patch else T
+            resized_image_shape = image_list[0].shape
+            T = 'no patch' if not self.__is_patch else threshold
+            print(f'{np.multiply(resized_image_shape, 2)}')
             print(f"{f'[{idx+1:03d}] image get':16} : {self.get_data_dict()[patient]} - ", T)
 
-        self.setInputShape(input_shape = image_list[0].shape)
-        self.setCurrentData(current_data_dict)
+        self.set_input_shape(resized_image_shape)
+        self.set_current_data(current_data_dict)
         yield image_list
 
     def save_patch_img(self, patient, image_list):
-        save_dir = os.path.join(f'{self.__data_path}/Patch_0318_P16_CLAHE', f'{patient}')
-        # save_dir = os.path.join(f'{self.__data_path}/Patch_old_0316', f'{patient}')
+        save_dir = os.path.join(f'{self.__data_path}/{self.args.date}_P16_CLAHE', f'{patient}')
         os.makedirs(save_dir, exist_ok=True)
         
         for idx, img in enumerate(image_list):
             save_path = os.path.join(save_dir, f'{patient}_{idx+1}.png')
-            img = np.uint8((img - img.min()) / (img.max() - img.min()) * 255)
+            # img = np.uint8((img - img.min()) / (img.max() - img.min()) * 255)
             pil_img = Image.fromarray(img)
 
             pil_img.save(save_path, format='png')
@@ -564,8 +645,8 @@ class Data_Handler(Dataset):
             print(f"\r{f'[{idx+1:03d}] nifti get':16} : {self.get_data_dict()[patient]}", end='', flush=True)
         print()
         print(f"{'total nifti':16} : {len(niftilist):4}")
-        self.setInputShape(input_shape = niftilist[0][np.newaxis, :].shape)
-        self.setCurrentData(current_data_dict)
+        self.set_input_shape(niftilist[0][np.newaxis, :].shape)
+        self.set_current_data(current_data_dict)
         yield niftilist
     
     def minMaxNormalize(self, volume, patient):
