@@ -406,7 +406,7 @@ class Data_Handler(Dataset):
         if self.__dim=='2d':
             self.__X[phase] = list(self.get_image(phase, fold_idx))[0]
         else:
-            self.__X[phase] = list(self.getNifti(phase, fold_idx))[0]
+            self.__X[phase] = list(self.get_nifti(phase, fold_idx))[0]
 
         self.__y[phase] = list(self.getOneHot())
 
@@ -636,14 +636,14 @@ class Data_Handler(Dataset):
                 current_data_dict[patient] = self.get_data_dict()[patient]
             resized_image_shape = image_list[0].shape
             T = 'no patch' if not self.__is_patch else threshold
-            print(f'{np.multiply(resized_image_shape, 2)}')
+            print(f'{np.multiply(resized_image_shape, 2)[1:]}')
             print(f"{f'[{idx+1:03d}] image get':16} : {self.get_data_dict()[patient]} - ", T)
 
         self.set_input_shape(resized_image_shape)
         self.set_current_data(current_data_dict)
         yield image_list
 
-    def getNifti(self, phase, fold_idx):
+    def get_nifti(self, phase, fold_idx):
         niftilist = []
         current_data_dict = {}
         patients = self.get_patients()
