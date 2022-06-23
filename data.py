@@ -605,6 +605,21 @@ class Data_Handler(Dataset):
 
             return image_list_save, threshold
         
+        def save_patch_img(patient, image_list):
+            '''
+            Gathered 4 images of 1 patient image is saved here.
+            Save dir name is set by today's date(YYYY_MMDD).
+            '''
+            save_dir = os.path.join(f'{self.__data_path}/{self.args.date}_P16_CLAHE', f'{patient}')
+            os.makedirs(save_dir, exist_ok=True)
+            
+            for idx, img in enumerate(image_list):
+                save_path = os.path.join(save_dir, f'{patient}_{idx+1}.png')
+                # img = np.uint8((img - img.min()) / (img.max() - img.min()) * 255)
+                pil_img = Image.fromarray(img)
+
+                pil_img.save(save_path, format='png')
+        
         current_data_dict = {}
         image_list = []
         transform = get_transformer()
@@ -614,7 +629,7 @@ class Data_Handler(Dataset):
             image=Image.open(filename)
             if self.__is_patch:
                 image_list, threshold = get_patch_images(patient, image)
-                self.save_patch_img(patient, image_list)
+                save_patch_img(patient, image_list)
                 image_list = [ transform(i) for i in image_list ]
             else:
                 image_list.append(transform(image))
@@ -627,22 +642,6 @@ class Data_Handler(Dataset):
         self.set_input_shape(resized_image_shape)
         self.set_current_data(current_data_dict)
         yield image_list
-
-    def save_patch_img(self, patient, image_list):
-        '''
-        Gathered 4 images of 1 patient image is saved here.
-        Save dir name is set by today's date(YYYY_MMDD).
-        '''
-        save_dir = os.path.join(f'{self.__data_path}/{self.args.date}_P16_CLAHE', f'{patient}')
-        os.makedirs(save_dir, exist_ok=True)
-        
-        for idx, img in enumerate(image_list):
-            save_path = os.path.join(save_dir, f'{patient}_{idx+1}.png')
-            # img = np.uint8((img - img.min()) / (img.max() - img.min()) * 255)
-            pil_img = Image.fromarray(img)
-
-            pil_img.save(save_path, format='png')
-
 
     def getNifti(self, phase, fold_idx):
         niftilist = []
