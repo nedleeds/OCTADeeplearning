@@ -554,6 +554,10 @@ class Data_Handler(Dataset):
             return arr_clip_up_low
         
         def set_resized_image_list(image_arr, image_list_save):
+            '''
+            Resizing by utilizing PIL library.
+            The interpolation is NEAREST. 
+            '''
             pil_img = Image.fromarray(np.uint8(image_arr))
             pil_img_resized = pil_img.resize((100, 100), Image.NEAREST)
 
@@ -562,6 +566,10 @@ class Data_Handler(Dataset):
             return image_list_save
         
         def get_patch_images(patient, image):
+            '''
+            When self.__patch_mode = True,
+            This function will split the image to 4 images.
+            '''
             current_data_dict[patient] = self.get_data_dict()[patient]
             img_arr = np.asarray(image) if patient > 10300 else np.asarray(image)[100:300, 100:300]
             img_size = img_arr.shape
@@ -621,6 +629,10 @@ class Data_Handler(Dataset):
         yield image_list
 
     def save_patch_img(self, patient, image_list):
+        '''
+        Gathered 4 images of 1 patient image is saved here.
+        Save dir name is set by today's date(YYYY_MMDD).
+        '''
         save_dir = os.path.join(f'{self.__data_path}/{self.args.date}_P16_CLAHE', f'{patient}')
         os.makedirs(save_dir, exist_ok=True)
         
