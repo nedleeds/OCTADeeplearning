@@ -22,10 +22,10 @@ def str_to_bool(v):
 def getArguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_path', nargs='?', default="./data/dataset/OG", type=str, 
+    parser.add_argument('--data_path', nargs='?', default="./data/Nifti/In/Transformed/OCTA_SRL_256", type=str, 
                         help='Enter the data path.(default: "./data/Nifti/In/FOV_66/SRL")')
                         # 2d - ./data/dataset/OG - for patch mode
-                        # 2d - ./data/dataset/OG/OCTA_Enface
+                        # 2d - ./data/dataset/OG/OCTA_Enface - Integrated FOV data
                         # 3d - ./data/Nifti/In/FOV_66/SRL - 640 but this gonna crop the volume to 256
                         # 3d before registration - ./data/Nifti/In/Transformed/OCTA_SRL_NO_REG
                         # 3d after registration - ./data/Nifti/In/Transformed/OCTA_SRL_256
@@ -42,10 +42,10 @@ def getArguments():
     parser.add_argument('--test_rate', nargs='?', default=0.15, type=float,
                         help='Set the rate of train/test : 0.1, 0.15, 0.2, 0.25, 0.3')
 
-    parser.add_argument('--dimension', nargs='?', default='2d', type=str,
+    parser.add_argument('--dimension', nargs='?', default='3d', type=str,
                         help='Choose the dimension between 2d/3d')
 
-    parser.add_argument('--model', nargs='?', default='VGG_19_2D', type=str,
+    parser.add_argument('--model', nargs='?', default='Res_18_3D', type=str,
                         help='Model name : VGG_16_2D, VGG_19_2D, \
                               Res_10_2D, Res_18_2D, Res_50_2D, VIT_2D,\
                               Incept_v3_2D, Google_2D,\
@@ -59,13 +59,13 @@ def getArguments():
     parser.add_argument('--loss', nargs='?', default='nll', type=str,
                         help='Choose the loss function : ce, bce, mse, nll, fcl')
 
-    parser.add_argument('--learningrate', nargs='?', default=5e-3, type=float, #5e-3 for ae_pre_train
+    parser.add_argument('--learningrate', nargs='?', default=4e-3, type=float, #5e-3 for ae_pre_train
                         help='Set the learning Rate')
 
     parser.add_argument('--epoch', nargs='?', default=200, type=int,
                         help='Set the epoch Number')
 
-    parser.add_argument('--batch', nargs='?', default=32, type=int, #32 for ae_pre_train
+    parser.add_argument('--batch', nargs='?', default=1, type=int, #32 for ae_pre_train
                         help='Set the batch size')
 
     parser.add_argument('--disease', nargs='?', default="NORMAL AMD CSC DR RVO", type=str,
@@ -101,7 +101,7 @@ def getArguments():
     parser.add_argument('--transfer_learning_optimizer', nargs='?', default='adam', type=str, 
                         help='asgd, sgd, rmsp, adam, adamw, adadelta, adagrad') # asgd for ae_x
 
-    parser.add_argument('--patch_mode', default='True', type=str_to_bool)
+    parser.add_argument('--patch_mode', default='False', type=str_to_bool)
     
     parser.add_argument('--test_mode' , default='False', type=str_to_bool)
     
@@ -110,6 +110,8 @@ def getArguments():
     parser.add_argument('--ae_learning_rate', nargs='?', default=5e-3, type=float) # 5e-3: loss 483-0.001607 # pre-train LR
     
     parser.add_argument('--num_class', nargs='?', default=2, type=int)
+    
+    parser.add_argument('--clipping', default='True', type=str_to_bool)
 
     args = parser.parse_args()
     

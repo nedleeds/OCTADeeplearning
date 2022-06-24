@@ -44,11 +44,13 @@ class Data_Handler(Dataset):
         self.__disease_dir = ''
         self.__flatten = args.flatten
         self.__patients = []
+        self.__clip = args.clipping
         self.__ae_data_num = args.ae_data_num
         self.__is_patch = args.patch_mode
         self.__data_path = args.data_path
         self.__grouped_num = 0
-
+        self.__patch_size = 0
+        
     def __call__(self):
         self.set_skip_list()
         self.check_loaded_path()
@@ -173,7 +175,6 @@ class Data_Handler(Dataset):
             fold_idx+=1
 
         self.check_folds()
-        print()
 
     def set_output_dir(self):
         '''
@@ -408,7 +409,7 @@ class Data_Handler(Dataset):
         else:
             self.__X[phase] = list(self.get_nifti(phase, fold_idx))[0]
 
-        self.__y[phase] = list(self.getOneHot())
+        self.__y[phase] = list(self.get_onehot_label())
 
     def get_dataset(self, phase):
         return self.__X[phase], self.__y[phase]
@@ -419,7 +420,7 @@ class Data_Handler(Dataset):
         '''
         self.__current_data_dict = data_dict
         
-    def getCurrentData(self):
+    def get_current_data(self):
         return self.__current_data_dict
 
     def getX(self):
@@ -491,8 +492,28 @@ class Data_Handler(Dataset):
         return self.__patients = [10001, 10002, ... ]
         '''
         return self.__patients
-
-    def get_image(self, phase, fold_idx):
+    
+    def clipping(self, data, upper_percent = 0.1, lower_percent = 5):
+            '''
+            Clipping set min/max intensity has matched to
+            specific intensity value from percentage of total
+            intensity. The reason we use this process is when
+            we adap min-max normalize without this, the 255 could
+            be the max and this value could be the noise.
+            So for proper min-max normalization, we use this process.
+            default upper/lower percent for 2D : 0.1/5 (%)
+            '''
+            
+            lower = np.percentile(data[np.where(data > 0)], lower_percent)
+            upper = np.percentile(data[np.where(data > 0)], 100-upper_percent)
+            
+            # arr = data.copy()
+            data[data<lower] = 0
+            data[data>upper] = int(upper)
+            
+            yield data
+                
+    def get_image(self, phase, fold_idx):   
         '''
         phase = 'train', 'test', f'fold[fold_idx]':{'train', 'valid}'
         load 2D image from path of selected phase.
@@ -525,33 +546,11 @@ class Data_Handler(Dataset):
             to make them similar resolutions.
             The row, col size are defined by patch_num respectively.
             '''
-            patch_num = 4
+            patch_num = self.__patch_size
             row_size = int(image_size[0]//np.sqrt(patch_num))
             col_size = int(image_size[1]//np.sqrt(patch_num))
             print(f'{patient} og->resized : {image_size}',end='->')
             return row_size, col_size, patch_num
-        
-        def image_clipping(image_arr):
-            '''
-            Clipping set min/max intensity has matched to
-            specific intensity value from percentage of total
-            intensity. The reason we use this process is when
-            we adap min-max normalize without this, the 255 could
-            be the max and this value could be the noise.
-            So for proper min-max normalization, we use this process.
-            '''
-            arr = image_arr.copy()
-            lower = np.percentile(arr[np.where(arr > 0)], 5)
-            upper = np.percentile(arr[np.where(arr > 0)], 99.9)
-
-            arr_clip_up_low = image_arr.copy()
-            arr_clip_up_low[lower>arr_clip_up_low] = 0
-            arr_clip_up_low[upper<arr_clip_up_low] = int(upper)
-            
-            # # min-max
-            # arr_clip_up_low = np.uint8((arr_clip_up_low - arr_clip_up_low.min()) / 
-            #                             (arr_clip_up_low.max()-arr_clip_up_low.min())*255)
-            return arr_clip_up_low
         
         def set_resized_image_list(image_arr, image_list_save):
             '''
@@ -595,7 +594,7 @@ class Data_Handler(Dataset):
                         CLAHE, threshold -> base on the each patient image property.
                         '''
                         # if cnt in [6,7,10,11]: # center 4 Images.
-                        arr_clip_up_low = image_clipping(img_arr_)
+                        arr_clip_up_low = next(self.clipping(img_arr_))
                         # Contrast control - CLAHE
                         clahe = cv2.createCLAHE(clipLimit=threshold, tileGridSize=(4, 4))
                         arr_clip_up_low = clahe.apply(arr_clip_up_low)
@@ -604,7 +603,7 @@ class Data_Handler(Dataset):
                         image_list_save = set_resized_image_list(img_arr_, image_list_save)
 
             return image_list_save, threshold
-        
+            
         def save_patch_img(patient, image_list):
             '''
             Gathered 4 images of 1 patient image is saved here.
@@ -628,6 +627,7 @@ class Data_Handler(Dataset):
             filename = os.path.join(self.get_input_path()['data'], f"{patient}.png")
             image=Image.open(filename)
             if self.__is_patch:
+                self.__patch_size = 4 
                 image_list, threshold = get_patch_images(patient, image)
                 save_patch_img(patient, image_list)
                 image_list = [ transform(i) for i in image_list ]
@@ -647,30 +647,38 @@ class Data_Handler(Dataset):
         niftilist = []
         current_data_dict = {}
         patients = self.get_patients()
-        for idx, patient in enumerate(patients):
+        
+        for idx, patient in progress_bar(iterable = patients, label = self.get_data_dict(), length = 30, idx=True):
+        # for idx, patient in enumerate(patients):
             niftipath = os.path.join(self.get_input_path()['data'], f"{patient}.nii.gz")
             nifti = nib.load(niftipath)
             nifti.uncache()
-            niftilist.append(next(self.minMaxNormalize(nifti, patient)))
+            niftilist.append(next(self.min_max(nifti, patient, clip=self.__clip)))
             current_data_dict[patient] = self.get_data_dict()[patient]
-            print(f"\r{f'[{idx+1:03d}] nifti get':16} : {self.get_data_dict()[patient]}", end='', flush=True)
-        print()
-        print(f"{'total nifti':16} : {len(niftilist):4}")
+            # print(f"\r{f'[{idx+1:03d}] nifti get':16} : {self.get_data_dict()[patient]}", end='', flush=True)
+        print(f"{f'{phase:5} total nifti':16} : {len(patients):4}")
         self.set_input_shape(niftilist[0][np.newaxis, :].shape)
         self.set_current_data(current_data_dict)
         yield niftilist
     
-    def minMaxNormalize(self, volume, patient):
+    def min_max(self, volume, patient, clip=False):
         v = np.asarray(volume.dataobj).transpose(1,0,2)
-        print(v.shape) 
+        v = next(self.clipping(v, lower_percent = 5)) if clip else v
         self.__3d_minMax_values[patient]={'max':v.max(), 'min':v.min()}
+        v = v/np.sum(v) * 120  # mean intensity : 120
         v = np.array((v-v.min())/(v.max()-v.min()), dtype='f2')
         yield v
 
     def toTensor(self, x):
+        '''
+        Make numpy array to tensor for pytorch training.
+        '''
         yield torch.from_numpy(np.asarray(x)).float().to(device=self.__device)
 
-    def setDiseaseLabel(self):
+    def set_disease_label(self):
+        '''
+        Set the disease label : {disease:patient}
+        '''
         disease_index = {d:i for i, d in enumerate(sorted(self.get_disease_keys()))}
         for d in sorted(self.get_disease_dict()):
             if d=='NORMAL':
@@ -679,18 +687,28 @@ class Data_Handler(Dataset):
 
         self.__disease_label = disease_index
     
-    def getDiseaseLabel(self):
+    def get_disease_label(self):
+        '''
+        Return the label of disease : {disease:patient}.
+        '''
         return self.__disease_label
 
-    def getOneHot(self):
+    def get_onehot_label(self):
+        '''
+        This function is for Y data.
+        Label needs to be changed depends on the loss function.
+        for ['ce', 'fcl', 'nll'], don't use the one-hot encoding.
+        The others ['mse', 'bce'], alteration is needed for classification.
+        However, 'mse', 'bce' are only working for multi-classification for now.
+        '''
         label2Num = []
         onehot_list = []
-        patients = []
-        self.setDiseaseLabel()
-        table = self.getDiseaseLabel()
+        self.set_disease_label()
+        table = self.get_disease_label()
         loss = self.__loss
-        
-        for idx, (patient, disease) in enumerate(self.getCurrentData().items()):
+        for _, (patient, disease) in progress_bar(iterable = self.get_current_data().items(),
+                                               idx = True,
+                                               length = 30):
             if loss in ["ce", "fcl", "nll"] : 
                 if self.__is_merge == False:
                     if self.__pre_train:
@@ -701,9 +719,8 @@ class Data_Handler(Dataset):
                     if self.__pre_train:
                         label2Num.extend([int(disease != 'NORMAL'), patient])
                     else:
-                        if self.__is_patch:
-                            patch_num = 4 if patient < 10301 else 4
-                            label2Num.extend([int(disease != 'NORMAL')]*patch_num)
+                        if self.__is_patch and '2' in self.__dim:
+                            label2Num.extend([int(disease != 'NORMAL')]*self.__patch_size)
                         else:
                             label2Num.extend([int(disease != 'NORMAL')])
                 y = label2Num
@@ -716,17 +733,18 @@ class Data_Handler(Dataset):
                     print("!! Set onehot for binary classification !!")
                     pass
                 y = onehot_list
-            # print(f"\r{f'[{idx+1:03d}] onehot encoding':16} : {patient} - {disease}", end='', flush=True)
-        print()
-        print(f"{'total label':16} : {len(y):4}")
-        # if np.sum(label2Num)!=0. : y = label2Num
-        # else : y = onehot_list 
+                
+        print(f"{f'{self.__phase:5} total label':16} : {len(y):4}")
         yield from y
 
-    def sortTable(self, reverse = False):
+    def sort_table(self, reverse = False):
+        '''
+        This sorting is for the Disease name.
+        AMD->CSC->DR->RVO (ordered by Alphabet.)
+        '''
         if not reverse : 
-            table = dict(sorted(self.getDiseaseLabel().items(), key = lambda x : x[1])) 
+            table = dict(sorted(self.get_disease_label().items(), key = lambda x : x[1])) 
         else : 
-            table = {item:key for key, item in self.getDiseaseLabel().items()}
+            table = {item:key for key, item in self.get_disease_label().items()}
             table = dict(sorted(table.items(), key = lambda x : x[0])) 
         return table

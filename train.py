@@ -88,8 +88,8 @@ class train():
         self.roc_plot_dir= os.path.join(data_handler.getOuputDir()['roc_plot'], ae)
 
         self.input_shape   = data_handler.getInputShape()
-        self.disease_index = data_handler.sortTable(reverse=False)
-        self.index_disease = data_handler.sortTable(reverse=True)
+        self.disease_index = data_handler.sort_table(reverse=False)
+        self.index_disease = data_handler.sort_table(reverse=True)
         self.label_table   = [self.disease_index, self.index_disease]
 
         self.fold_Best     = [0]*self.fold_num
@@ -306,7 +306,7 @@ class train():
         model_ae.eval()
         
         print(f"{self.ae_data_num} data have been loaded.")
-        patients_list = [id_ for id_ in data_handler.getCurrentData()]
+        patients_list = [id_ for id_ in data_handler.get_current_data()]
         # MinMax_dict = totalloader.dataset.MinMax
         
         for idx, ( test_X, _ ) in enumerate(trainloader): 
@@ -335,17 +335,6 @@ class train():
                 
                 print(f"{patient} saved.")
         print()
-
-    def setup(rank, world_size):
-            # 각 프로세스가 다른 프로세스들과 통신할 수 있도록 분산환경 설정
-        os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12355'
-
-        # initialize the process group
-        dist.init_process_group("gloo", rank=rank, world_size=world_size)
-
-    def cleanup():
-        dist.destroy_process_group()
 
     def multi_class(self, data_handler):
         for fold_idx in range(1, self.fold_num+1):
@@ -555,8 +544,8 @@ class train():
             seed_everything(34)
             data_handler.set_dataset('train', fold_idx=fold_idx)
             data_handler.set_dataset('valid', fold_idx=fold_idx)
-            # self.disease_index = data_handler.sortTable(reverse=False)
-            # self.index_disease = data_handler.sortTable(reverse=True)
+            # self.disease_index = data_handler.sort_table(reverse=False)
+            # self.index_disease = data_handler.sort_table(reverse=True)
             # self.label_table   = [self.disease_index, self.index_disease]
             # print(self.label_table)
             self.input_shape = data_handler.getInputShape()

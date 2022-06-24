@@ -85,8 +85,8 @@ class test():
 
             self.test_size     = len(data_handler.gety()['test'])
             self.input_shape   = data_handler.getInputShape()
-            self.disease_index = data_handler.sortTable(reverse=False)
-            self.index_disease = data_handler.sortTable(reverse=True)
+            self.disease_index = data_handler.sort_table(reverse=False)
+            self.index_disease = data_handler.sort_table(reverse=True)
             self.label_table   = [self.disease_index, self.index_disease]
             
             best_params = getBestParam(self.args)
@@ -194,7 +194,7 @@ class test():
         else:
             model = next(self.loadModel('best', fold_idx))
         attention_dir = f'{self.roc_plot_dir}/attention_maps/{phase}/fold{fold_idx}'
-        names = [f'{attention_dir}/{s_id}_{d}' for s_id, d in data_loader.dataset.getCurrentData().items()]
+        names = [f'{attention_dir}/{s_id}_{d}' for s_id, d in data_loader.dataset.get_current_data().items()]
         shape = (192, 192) if '2' in self.dimension else (192, 256, 192)
         
         if self.args.medcam:
