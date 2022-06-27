@@ -418,7 +418,7 @@ class train():
                     self.lr = self.args.learningrate
                     self.optimizer_name = self.tf_lrn_opt
                     self.loss_name = self.args.loss
-                else : 
+                else:
                     # init model
                     model = next(self.getModel())
                     # freezing for fine-tunning
@@ -445,6 +445,10 @@ class train():
                     model = nn.DataParallel(model)
                     
                 while not earlyStop.step(metrics['valid']):
+                    '''
+                    This is for the EarlyStop.
+                    Basically this is working on the validation loss.
+                    '''
                     writer_remove = True if epoch == 1 else False
                     writer = self.initWriter(fold_idx, f'{self.fold_num}fold', cnt, writer_remove)
                     
@@ -455,7 +459,6 @@ class train():
                         epoch_loss = 0.0
                         data_handler.set_phase(phase)
                         model.train() if phase == 'train' else model.eval()
-                        
                         for step, (train_X, train_y) in enumerate(DataLoader(data_handler, 
                                                                              batch_size=self.batch, 
                                                                              shuffle=True)):
@@ -474,12 +477,11 @@ class train():
                                     optimizer.step()
                             epoch_gt.extend(step_gt)
                             epoch_pd.extend(step_pd)
-                            
                             check.Step(step_gt, step_pd)
                             step_loss = loss.item()
                             epoch_loss += step_loss*len(train_y)
                             del train_X, train_y, prediction
-                            
+                        
                         if phase == 'train':
                             scheduler.step()
                         epoch_loss_mean = epoch_loss/dataset_sizes[phase]
@@ -489,9 +491,9 @@ class train():
                         # _ : confusion matrix
                         metrics[phase] = metric
                         metrics[phase]['Loss'] = epoch_loss_mean
+                        # save train scores
                         self.saveResult(epoch, phase, fold_idx, epoch_loss_mean, metric)
-                        
-                        if phase=='train' : 
+                        if phase == 'train': 
                            epoch_loss_train=epoch_loss_mean
                            if best_train <= metrics[phase][key_metric]:
                                 best_train = metrics[phase][key_metric]
@@ -505,12 +507,10 @@ class train():
                                 best_model_wts = copy.deepcopy(model.state_dict())
                                 self.previous_BEST[fold_idx-1] = metrics[phase][key_metric]
                                 self.total_Best_cm[fold_idx-1] = metrics[phase]
-
                             if previous_loss >= epoch_loss_valid:
                                 previous_loss = epoch_loss_valid
                             else:
                                 worse_cnt+=1
-
                             writer.add_scalars('Loss',{'train':epoch_loss_train, 'valid':epoch_loss_valid}, epoch)
                             writer.add_scalars('ACC', {'train':metrics['train']['ACC'],'valid':metrics['valid']['ACC']}, epoch)
                             writer.add_scalars('F1',  {'train':metrics['train']['F1'], 'valid':metrics['valid']['F1'] }, epoch)
