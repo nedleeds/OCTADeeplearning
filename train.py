@@ -12,26 +12,21 @@ import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torchsummary
-from sklearn.model_selection import KFold, StratifiedKFold
 
-from torch.nn import parameter
 from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader, dataloader, dataset
+from torch.utils.data import DataLoader
 from torch.optim import ASGD, SGD, Adadelta, Adagrad, Adam, AdamW, RMSprop
-from torch.utils.tensorboard import SummaryWriter, writer
+from torch.utils.tensorboard import SummaryWriter
 from efficientnet_pytorch_3d import EfficientNet3D
-
-from data import Data_Handler
 
 from utils.resnet import generate_model
 from utils.evaluate import checking
 from utils.FocalLoss import FocalLoss
 from utils.earlyStop import EarlyStopping
-from utils.getOptimized import RandomSearch
 from utils.INCEPT_V3_3D import Inception3_3D
 
-from model import VGG16_2D, ResNet_2D, GOOGLE_2D, INCEPT_V3_2D, VGG_2D, EFFICIENT_2D, VIT_2D
-from model import CV3FC2_3D, CV5FC2_3D,  VGG16_3D, Res50_3D, ResNet_3D, autoencoder, freeze
+from model import ResNet_2D, GOOGLE_2D, INCEPT_V3_2D, VGG_2D, EFFICIENT_2D, VIT_2D
+from model import CV3FC2_3D, CV5FC2_3D, VGG16_3D, autoencoder, freeze
 
 def seed_everything(seed):
     random.seed(seed)
@@ -62,50 +57,37 @@ class train():
         self.isMerge        = args.mergeDisease
         self.filter         = args.filter
         self.dimension      = args.dimension
-        self.preTrain       = True if args.ae_pre_train=='True' else False
-        
+        self.classes        = args.num_class
+        self.ae_pre_train   = args.ae_pre_train
         self.best_epoch     = 1
-        self.device         = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.valid_subsampler = []
-        self.classes = 2
-    
         self.log_dir        = ''
         self.check_dir      = ''
         self.result_dir     = ''
         self.best_param_dir = ''
         self.tensorboard_dir= ''
-        self.pre_writer = None
-        self.tf_lrn_opt = args.transfer_learning_optimizer
+        self.pre_writer     = None
+        self.tf_lrn_opt     = args.transfer_learning_optimizer
+        self.device         = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def __call__(self, data_handler):
-        ae = 'ae_o' if self.is_transfered else 'ae_x'
-        self.best_param_dir = os.path.join(self.best_param_dir, ae)
-        self.log_dir        = data_handler.getOuputDir()['log']
-        self.check_dir      = data_handler.getOuputDir()['checkpoint']
-        self.result_dir     = data_handler.getOuputDir()['result']
-        self.best_param_dir = os.path.join(data_handler.getOuputDir()['best_parameter'], ae)
-        self.tensorboard_dir= os.path.join(data_handler.getOuputDir()['tensorboard'], ae)
-        self.roc_plot_dir= os.path.join(data_handler.getOuputDir()['roc_plot'], ae)
-
-        self.input_shape   = data_handler.getInputShape()
-        self.disease_index = data_handler.sort_table(reverse=False)
-        self.index_disease = data_handler.sort_table(reverse=True)
-        self.label_table   = [self.disease_index, self.index_disease]
-
-        self.fold_Best     = [0]*self.fold_num
-        self.previous_BEST = [-np.inf for _ in range(self.fold_num)]
-        self._best_parameter = {f'fold{idx}':{} for idx in range(1, self.fold_num+1)}    
-        self.y_folds = []
-        self.y_preds_folds = []
+        self.set_output_dir(data_handler)
+        self.set_train_data(data_handler)
+        
+        self.fold_Best       = [0]*self.fold_num
+        self.previous_BEST   = [-np.inf for _ in range(self.fold_num)]
+        self._best_parameter = {f'fold{idx}':{} for idx in range(1, self.fold_num+1)}
+        self.y_folds         = []
+        self.y_preds_folds   = []
 
         self.pre_trained_batch = 1
-        self.pre_trained_lr = self.args.ae_learning_rate#5e-2 #3e-3
-        self.classes = len(data_handler.get_disease_keys())
-        # self.modelSummary(dimension='3d', input_shape=(1,224,400,400))
+        self.pre_trained_lr    = self.args.ae_learning_rate
+        self.classes           = len(data_handler.get_disease_keys())
+
         # checking model
         logging.info(f"Status-{list(set(self.index_disease.values()))}")
 
-        if self.preTrain and ('3' in self.dimension):
+        if self.ae_pre_train and ('3' in self.dimension):
             seed_everything(99) ## 5 for my AE
             ## using total set
             logging.info("Start AutoEncoder pre-processing.")
@@ -120,171 +102,35 @@ class train():
 
         if self.isMerge:
             self.classes = 2
-            self.doKFold(data_handler)
+            self.binary_classification(data_handler)
             # self.retrain(data_handler) 
         else:
-            if 'res_50' in self.model_name.lower():
-                mp.spawn(self.multi_class(data_handler),
-                         args=(world_size,),
-                         nprocs=world_size,
-                         join=True)
-            else:
-                self.multi_class(data_handler)
+            self.multi_classification(data_handler)
             # self.retrain(data_handler) 
-        # return
-        # self.doKFold(data_handler)
-        # self.saveAVGResults(self.total_Best_cm) # save mean metric values from each folds.
-        # self.saveTestMetric('valid', self.total_Best_cm)
 
-        # from utils.getBestParam import getBestParam
-        # self._best_parameter = getBestParam(self.args)
+    def set_output_dir(self, data_handler):
+        '''
+        Set the output directories' path.
+        '''
+        ae = 'ae_o' if self.is_transfered else 'ae_x'
+        self.best_param_dir = os.path.join(self.best_param_dir, ae)
+        self.log_dir        = data_handler.getOuputDir()['log']
+        self.check_dir      = data_handler.getOuputDir()['checkpoint']
+        self.result_dir     = data_handler.getOuputDir()['result']
+        self.best_param_dir = os.path.join(data_handler.getOuputDir()['best_parameter'], ae)
+        self.tensorboard_dir= os.path.join(data_handler.getOuputDir()['tensorboard'], ae)
+        self.roc_plot_dir= os.path.join(data_handler.getOuputDir()['roc_plot'], ae)
 
-        # logging.info("Start Retrain process.")
-        # self.retrain(data_handler) 
-
-    def getBestFold(self):
-        return np.argmax([self.total_Best_cm[x]['ACC'] for x in range(5)])
-
-    def getBestParams(self):
-        return self._best_parameter
-
-    def seed_worker(self, worker_id):
-        worker_seed = torch.initial_seed()%2**32
-        np.random.seed(worker_seed)
-        random.seed(worker_seed)
-
-    def modelSummary(self, dimension, model=None, input_shape=None):
-        assert dimension in ['2d', '3d'], "Set correct dimension."
-        if model is not None : 
-            pass
-        else:
-            model = next(self.getModel())
-        if input_shape is not None:
-            torchsummary.summary(model, input_shape)
-        else:
-            torchsummary.summary(model, self.input_shape)
-            
-    def check_normalization(self, train_X, disease, patient):
-        disease = list(disease)[0]
-        patient = list(patient.data.cpu().numpy())[0]
-        if patient in [ 10035, 10057, 10114, 10219, 10220,10039, 10046, 10055, 10074, 10080,
-                        10089,	10111, 10212, 10224, 10257, 
-                        10285, 10288]:
-            from PIL import Image
-
-            # 1. og, 2. min_max, 3. meanfpr
-            os.makedirs(enface_dir, exist_ok=True)
-
-            nii_name_og = f'{patient}.nii.gz'
-            nii_name_min_max = f'{patient}_{disease}_min_max.nii.gz'
-            nii_name_prune_min_max = f'{patient}_{disease}_prune_min_max.nii.gz'
-
-            img_name_og = f'{patient}_{disease}.png'
-            img_name_min_max = f'{patient}_{disease}_min_max.png'
-            img_name_prune_min_max = f'{patient}_{disease}_prune_min_max.png'
-
-            nii_save_path_og = os.path.join(nii_dir, nii_name_og)
-            nii_save_path_min_max = os.path.join(nii_dir, nii_name_min_max)
-            nii_save_path_prune_min_max = os.path.join(nii_dir, nii_name_prune_min_max)
-
-            #### Get Nifti - OG, Min/Max Normalized, Mean Normalized. ####
-            arr_3d_mask = np.asarray(nib.load(os.path.join(mask_dir, f'{patient}.nii.gz')).dataobj)
-            arr_3d_og = np.uint8(nib.load(os.path.join(og_dir, f'{patient}.nii.gz')).dataobj)
-            arr_3d_og_srl = np.zeros(np.shape(arr_3d_og))
-            arr_3d_og_srl[(0<arr_3d_mask) & (arr_3d_mask<5)] = arr_3d_og[(0<arr_3d_mask) & (arr_3d_mask<5)]
-            # arr_3d_min_max = train_X[0].data.cpu().numpy()
-            m = np.min(arr_3d_og_srl)
-            M = np.max(arr_3d_og_srl)
-            arr_3d_min_max = (arr_3d_og_srl - m) / (M-m)
-            arr_3d_min_max = np.uint8(arr_3d_min_max.reshape((192,-1,192))*255)
-            
-            arr_3d_prune = np.zeros(np.shape(arr_3d_mask))
-            lower = np.percentile(arr_3d_og_srl[np.where(arr_3d_og_srl > 0)], 0)
-            upper = np.percentile(arr_3d_og_srl[np.where(arr_3d_og_srl > 0)], 99.99)
-            arr_3d_prune[(lower <= arr_3d_og_srl) & (arr_3d_og_srl <= upper)] = arr_3d_og_srl[(lower <= arr_3d_og_srl) & (arr_3d_og_srl <= upper)]
-            
-            arr_3d_prune_min_max = np.zeros(np.shape(arr_3d_mask))
-            m = np.min(arr_3d_prune)
-            M = np.max(arr_3d_prune)
-            arr_3d_prune_min_max = np.uint8((arr_3d_prune - m) / (M-m)*255)
-
-            print(f'og - mean, max, min : {np.round(np.mean(arr_3d_og_srl[np.where(arr_3d_og_srl > 0)]),3), np.max(arr_3d_og[np.where(arr_3d_og_srl > 0)]), np.min(arr_3d_og[np.where(arr_3d_og_srl > 0)])}')
-            print(f'min max - mean, max, min : {np.round(np.mean(arr_3d_min_max[np.where(arr_3d_og_srl > 0)]),3), np.max(arr_3d_min_max[np.where(arr_3d_og_srl > 0)]), np.min(arr_3d_min_max[np.where(arr_3d_og_srl > 0)])}')
-            print(f'min max clip - mean, max, min : {np.round(np.mean(arr_3d_prune_min_max[np.where(arr_3d_og_srl > 0)]),3), np.max(arr_3d_prune_min_max[np.where(arr_3d_og_srl > 0)]), np.min(arr_3d_prune[np.where(arr_3d_og_srl > 0)])}')
-
-            #### Convert numpy array to nibabel image & Save nibabel image ####
-            ref = nib.load('./data/Nifti/In/Transformed/OCTA_SRL_256/10001.nii.gz')
-            nii_img_og = nib.Nifti1Image(arr_3d_og_srl, ref.affine, ref.header)
-            nii_img_min_max = nib.Nifti1Image(arr_3d_min_max, ref.affine, ref.header)
-            nii_img_prune_min_max = nib.Nifti1Image(arr_3d_prune_min_max, ref.affine, ref.header)
-
-            nib.save(nii_img_og, nii_save_path_og)
-            nib.save(nii_img_min_max, nii_save_path_min_max)
-            nib.save(nii_img_prune_min_max, nii_save_path_prune_min_max)
-
-            #### Make En-face through MIP ####
-            arr_2d_og = np.max(arr_3d_og_srl, axis=1)
-            arr_2d_min_max = np.max(arr_3d_min_max, axis=1)
-            arr_2d_prune_min_max = np.max(arr_3d_prune_min_max, axis=1)
-
-            #### Convert numpy array to PIL image & Save PIL image ####
-            pil_img_og = Image.fromarray(np.rot90(np.uint8(arr_2d_og)))
-            pil_img_min_max = Image.fromarray(np.rot90(np.uint8(arr_2d_min_max)))
-            pil_img_prune_min_max = Image.fromarray(np.rot90(np.uint8(arr_2d_prune_min_max)))
-            
-            #### Save 
-            pil_img_og.save(os.path.join(enface_dir, img_name_og), "PNG")
-            pil_img_min_max.save(os.path.join(enface_dir, img_name_min_max), "PNG")
-            pil_img_prune_min_max.save(os.path.join(enface_dir, img_name_prune_min_max), "PNG")
-            
-
-            font = {'family' : 'normal',
-                    'weight' : 'bold',
-                    'size'   : 15}
-
-            matplotlib.rc('font', **font)
-
-            fig, axes = plt.subplots(3, 2, figsize=(15, 20), layout='constrained')
-
-            hist_og, bin_edges_og = np.histogram(arr_3d_og_srl[np.where(arr_3d_og_srl > 0)])
-            hist_min_max, bin_edges_min_max = np.histogram(arr_3d_min_max[np.where(arr_3d_og_srl > 0)])
-            hist_prune_min_max, bin_edges_prune_min_max = np.histogram(arr_3d_prune_min_max[np.where(arr_3d_og_srl > 0)])
-
-
-            axes[0,0].plot(bin_edges_og[0:-1], hist_og)
-            i1 = axes[0,1].imshow(pil_img_og, cmap = 'gray')
-            axes[1,0].plot(bin_edges_min_max[0:-1], hist_min_max)
-            i2 = axes[1,1].imshow(pil_img_min_max, cmap = 'gray')
-            axes[2,0].plot(bin_edges_prune_min_max[0:-1], hist_prune_min_max)
-            i3 = axes[2,1].imshow(pil_img_prune_min_max, cmap = 'gray')
-
-            axes[0,0].set_title(f"[{patient}] Input Data")
-            axes[0,0].set_xlabel('grayscale value')
-            axes[0,0].set_ylabel('pixel count')
-            axes[0,1].set_title(f"{patient} En-Face")
-
-            axes[1,0].set_title(f"[{patient}] Input + Min/Max Normalizing * 255")
-            axes[1,0].set_xlabel('grayscale value')
-            axes[1,0].set_ylabel('pixel count')
-            axes[1,1].set_title(f"En-Face")
-
-            axes[2,0].set_title(f"[{patient}] Input + Min/Max with clipping(upper:0.01%) * 255")
-            axes[2,0].set_xlabel('grayscale value')
-            axes[2,0].set_ylabel('pixel count')
-            axes[2,1].set_title(f"En-Face")
-
-            # plt.show()
-            fig.colorbar(i1, ax = axes[0,1])
-            fig.colorbar(i2, ax = axes[1,1])
-            fig.colorbar(i3, ax = axes[2,1])
-            plt.savefig(fname = os.path.join(hist_dir, img_name_og))
-            plt.close()
-
-            print(f"{patient} has been checked.")
-
+    def set_train_data(self, data_handler):
+        '''
+        Set the data features.
+        '''
+        self.input_shape   = data_handler.getInputShape()
+        self.disease_index = data_handler.sort_table(reverse=False)
+        self.index_disease = data_handler.sort_table(reverse=True)
+        self.label_table   = [self.disease_index, self.index_disease]
 
     def testAEpreTrain(self, data_handler):
-        
         self.lr = self.pre_trained_lr
         self.ae_data_num = 483
         # self.optimizer_name = self.args.transfer_learning_optimizer
@@ -336,7 +182,7 @@ class train():
                 print(f"{patient} saved.")
         print()
 
-    def multi_class(self, data_handler):
+    def multi_classification(self, data_handler):
         for fold_idx in range(1, self.fold_num+1):
             seed_everything(34)
             data_handler.set_dataset('train', fold_idx=fold_idx)
@@ -347,12 +193,12 @@ class train():
             check = checking(lss=self.loss_name, labels=data_handler.getDiseaseLabel(), isMerge=self.isMerge)
             class_weights = 1./torch.tensor(self.classes, dtype=torch.float) 
             cnt = 0
-            isGreat = False
-            while not isGreat:
+            digging = False
+            while not digging:
                 # settings
                 cnt += 1
 
-                thsh = {'1':0.80,#87, 
+                dig_score = {'1':0.80,#87, 
                         '2':0.80,#87, 
                         '3':0.80,#85, 
                         '4':0.79,#84, 
@@ -376,7 +222,6 @@ class train():
                     #sgd, asgd, rmsp, adam, adamw, adagrad, adadelta
                 else : 
                     model = next(self.getModel()).to(self.device)
-                    # model = self.initFC(model, self.args, self.lr)
                     # freezing Convolution layers and set FC layer's required_grad True.
                     if '2' in self.dimension:
                         if 'vgg' in self.model_name:
@@ -406,7 +251,7 @@ class train():
                 while not earlyStop.step(metrics['valid']):
                     writer_remove = True if epoch == 1 else False
                     writer = self.initWriter(fold_idx, f'{self.fold_num}fold',cnt, writer_remove)
-                    print('-'*46+f'\nEpoch {epoch}/{self.epoch} - cnt[{cnt}], thsh[{thsh[f"{fold_idx}"]}]')
+                    print('-'*46+f'\nEpoch {epoch}/{self.epoch} - cnt[{cnt}], dig_score[{dig_score[f"{fold_idx}"]}]')
                     # metrics = {'train':None, 'valid':None}
                     model.zero_grad()
                     for phase in ['train', 'valid']:
@@ -429,16 +274,13 @@ class train():
                             # with torch.set_grad_enabled(phase == 'train'):
                             #     if '3' in self.dimension : outputs = model(train_X.unsqueeze_(1))
                             #     else                     : outputs = model(train_X)
-
                             #     loss = nn.CrossEntropyLoss()(outputs, train_y)
                                 
                             #     y_pred_softmax = torch.log_softmax(outputs, dim = 1)
                             #     _, prediction = torch.max(y_pred_softmax, dim = 1)    
                                 
-
                             #     step_pd = prediction.data.cpu().numpy()
                             #     step_gt = train_y.data.cpu().numpy()
-
                             train_X = train_X[0] if '2' in self.dimension else train_X[0].unsqueeze_(1)
                             train_y = train_y[0].long()
                             # print(f'step:{step}-{train_y}')
@@ -465,44 +307,38 @@ class train():
                                 
                                 step_pd = preds.data.cpu().numpy()
                                 step_gt = train_y.data.cpu().numpy()
-
-                                # 학습 단계인 경우 역전파 + 최적화
+                                
                                 if phase == 'train':
                                     loss.backward()
                                     optimizer.step()
                             
                             epoch_gt.extend(step_gt)
                             epoch_pd.extend(step_pd)
-                            
-                            # 통계
                             step_loss = loss.item()
                             epoch_loss += step_loss*len(train_y)
                             del train_X, train_y, prediction
-
-
+                            
                         if phase == 'train':
                             scheduler.step()
-
+                            
                         epoch_loss_mean = round(epoch_loss/dataset_sizes[phase], 6)
-
+                        
                         print(f'{"="*38}{phase}{"="*38}')
                         metric, cfmx = check.Epoch(epoch_gt, epoch_pd)
-
                         metrics[phase] = metric
                         metrics[phase]['Loss'] = epoch_loss_mean
-
                         thsh_key = 'f1'
                         if 'acc' in thsh_key:
                             metric_for_thresh = metric[thsh_key]
                         elif 'f1' in thsh_key:
                             metric_for_thresh = metric['macro avg']['f1-score']
-                        # 모델을 깊은 복사(deep copy)함
+                            
                         self.saveResult(epoch, phase, fold_idx, epoch_loss_mean, metric, cfmx)
-                        if phase=='train' : 
-                           epoch_loss_train=epoch_loss_mean
-                           if best_train <= metric_for_thresh:
+                        
+                        if phase=='train' :
+                            epoch_loss_train=epoch_loss_mean
+                            if best_train <= metric_for_thresh:
                                 best_train = metric_for_thresh
-
                         else: 
                             epoch_loss_valid = epoch_loss_mean
                             if self.previous_BEST[fold_idx-1]<= metric_for_thresh:
@@ -513,9 +349,6 @@ class train():
                                 best_model_wts = copy.deepcopy(model.state_dict())
                                 self.previous_BEST[fold_idx-1] = metric_for_thresh
                                 self.total_Best_cm[fold_idx-1] = metric_for_thresh
-                                best_epoch_gt = epoch_gt
-                                best_epoch_pd = epoch_pd
-                                # self.roc_plot(fold_idx, epoch_gt, epoch_pd, phase)
 
                             if previous_loss >= epoch_loss_valid:
                                 previous_loss = epoch_loss_valid
@@ -527,157 +360,141 @@ class train():
                     epoch += 1
                     writer.close()
 
-                # thsh = {'1':0.87-cnt%100, '2': 0.87-cnt%100, '3':0.87-cnt%100, '4':0.84-cnt%100, '5':0.87-cnt%100} # seed 33
-                if self.previous_BEST[fold_idx-1]>=thsh[f'{fold_idx}']:
-                # if self.previous_BEST[fold_idx-1]>=0.8:
+                if self.previous_BEST[fold_idx-1]>=dig_score[f'{fold_idx}']:
                     self.y_folds.extend(epoch_gt)
                     self.y_preds_folds.extend(epoch_pd)
                     self.saveModel('best', fold_idx, best_epoch, best_model_wts, best_loss)
-                    # self.roc_plot(best_epoch_gt, best_epoch_pd, 'validation', fold_idx)
-                    isGreat = True
+                    digging = True
                     break
 
-
-    def doKFold(self, data_handler):
+    def binary_classification(self, data_handler):
+        '''
+        This function is for the binary-classification(Normal/Abnormal).
+        Basically, train step is based on Pytorch-classification code.
+        'checking' module is for the evalutation.
+        Digging is for finding out the proper weights of given models.
+        Utilizing the randomly computed parts by cuda.
+        '''
+        seed_everything(34)
         check = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
         for fold_idx in range(1, self.fold_num+1):
-            seed_everything(34)
             data_handler.set_dataset('train', fold_idx=fold_idx)
             data_handler.set_dataset('valid', fold_idx=fold_idx)
-            # self.disease_index = data_handler.sort_table(reverse=False)
-            # self.index_disease = data_handler.sort_table(reverse=True)
-            # self.label_table   = [self.disease_index, self.index_disease]
-            # print(self.label_table)
             self.input_shape = data_handler.getInputShape()
             cnt = 0
-            isGreat = False
-            while not isGreat:
-                # settings
-                cnt += 1
-
-                thsh = {'1':0.80,#90, 
-                        '2':0.80,#90, 
-                        '3':0.80,#90, 
-                        '4':0.80,#84, 
-                        '5':0.80}#91} # seed 33
-
+            dig = True
+            while dig:
                 self.previous_BEST[fold_idx-1] = 0.
                 self._gamma = 0.94
-
-                # set the dataset
-                dataset = { 'train' : iter(data_handler.gety()['train']) , 
-                            'valid' : iter(data_handler.gety()['valid']) }
-                dataset_sizes = self.printDataNum(fold_idx, dataset)
-
-                if self.is_transfered and ('3' in self.dimension):
-                    # loadModel <- load Best model from AE preTrained.
-                    self.loss_name = 'nll'
-                    self.optimizer_name = 'asgd'
-                    model = next(self.loadModel("autoencoder"))
-                    model = freeze(num_class=self.classes, model=model).to(self.device)
-                    self.lr = self.args.learningrate # learning rate for transfer learning 
-                    self.optimizer_name = self.tf_lrn_opt
-                    self.loss_name = self.args.loss       
-                    #sgd, asgd, rmsp, adam, adamw, adagrad, adadelta
-                else : 
-                    model = next(self.getModel())
-                    # model = self.initFC(model, self.args, self.lr)
-                    # freezing Convolution layers and set FC layer's required_grad True.
-                    if '2' in self.dimension:
-                        if 'vgg' in self.model_name:
-                            for i,l in enumerate(model.vgg16.features):
-                                if len(model.vgg16.features)-5<i<len(model.vgg16.features):
-                                    l.requires_grad = True
-                                else:
-                                    l.requires_grad = False
-                                    2
-                optimizer = next(self.getOptimizer(model.parameters(), lr=self.lr))
-                lss_class = next(self.getLoss())
-                scheduler = StepLR(optimizer, step_size=10, gamma=self._gamma)
-                best_model_wts = copy.deepcopy(model.state_dict())
+                # settings
+                cnt += 1
                 best_train = -9999
                 worse_cnt = 0
                 previous_loss = 9999.
                 epoch = 1
                 metrics = {'train':None, 'valid':None}
-                earlyStop = EarlyStopping(key={'name':'Loss','mode':'min'}, tolerance=self.tolerance, patience=self.patience)
-                best_epoch_gt = []
-                best_epoch_pd = []
+                key_metric = 'F1'
+                earlyStop = EarlyStopping(key={'name':'Loss','mode':'min'}, 
+                                          tolerance=self.tolerance, 
+                                          patience=self.patience)
+                
+                dig_score = {'1':0.80, '2':0.80, '3':0.80, '4':0.80, '5':0.80}
+                # dig_score = {'1':0.87-cnt%100, '2': 0.87-cnt%100, '3':0.87-cnt%100, '4':0.84-cnt%100, '5':0.87-cnt%100}
+                
+                # set the dataset
+                dataset = { 'train' : iter(data_handler.gety()['train']) , 
+                            'valid' : iter(data_handler.gety()['valid']) }
+                dataset_sizes = self.printDataNum(fold_idx, dataset)
+                
+                if self.is_transfered and ('3' in self.dimension):
+                    '''Mode : 3D Transfer Learning(using Autoencoder)'''
+                    # load pre-trained model.
+                    self.loss_name = 'nll'
+                    self.optimizer_name = 'asgd' 
+                    model = next(self.loadModel("autoencoder"))
+                    model = freeze(num_class=self.classes, model=model).to(self.device)
+                    
+                    # set parameters for fine-tunning of transfer learning.
+                    self.lr = self.args.learningrate
+                    self.optimizer_name = self.tf_lrn_opt
+                    self.loss_name = self.args.loss
+                else : 
+                    # init model
+                    model = next(self.getModel())
+                    # freezing for fine-tunning
+                    if '2' in self.dimension:
+                        if 'vgg' in self.model_name:
+                            for i, l in enumerate(model.vgg16.features):
+                                if len(model.vgg16.features)-5<i<len(model.vgg16.features):
+                                    l.requires_grad = True
+                                else:
+                                    l.requires_grad = False
+                
+                optimizer = next(self.getOptimizer(model.parameters(), lr=self.lr))
+                lss_class = next(self.getLoss())
+                scheduler = StepLR(optimizer, step_size=10, gamma=self._gamma)
+                best_model_wts = copy.deepcopy(model.state_dict())
+                
                 if torch.cuda.device_count() > 1 and '50' in self.model_name:
+                    '''
+                    You don't need to use this if you don't have multiple gpus 
+                    which has same spec. However, as this model is huge,
+                    'Dataparallel' is highly recommended for ResNet3D-50.
+                    '''
                     print("Let's use", torch.cuda.device_count(), "GPUs!")
                     model = nn.DataParallel(model)
+                    
                 while not earlyStop.step(metrics['valid']):
                     writer_remove = True if epoch == 1 else False
-                    writer = self.initWriter(fold_idx, f'{self.fold_num}fold',cnt, writer_remove)
-                    print('-'*46+f'\nEpoch {epoch}/{self.epoch} - cnt[{cnt}], thsh[{thsh[f"{fold_idx}"]}]')
-                    # metrics = {'train':None, 'valid':None}
+                    writer = self.initWriter(fold_idx, f'{self.fold_num}fold', cnt, writer_remove)
+                    
+                    print('-'*46+f'\nEpoch {epoch}/{self.epoch} - cnt[{cnt}], thsh[{dig_score[f"{fold_idx}"]}]')
                     model.zero_grad()
                     for phase in ['train', 'valid']:
-                        data_handler.set_phase(phase)
-                        epoch_gt, epoch_pd = [], []
-                        if phase == 'train' : 
-                            model.train()  # 모델을 학습 모드로 설정
-                        else : 
-                            model.eval()   # 모델을 평가 모드로 설정
+                        epoch_gt, epoch_pd = [], []                         
                         epoch_loss = 0.0
+                        data_handler.set_phase(phase)
+                        model.train() if phase == 'train' else model.eval()
                         
-                        for step, (train_X, train_y) in enumerate(DataLoader(data_handler, batch_size=self.batch, shuffle=True)):
+                        for step, (train_X, train_y) in enumerate(DataLoader(data_handler, 
+                                                                             batch_size=self.batch, 
+                                                                             shuffle=True)):
                             train_X = train_X[0] if '2' in self.dimension else train_X[0].unsqueeze_(1).to(self.device)
                             train_y = train_y[0].long().to(self.device)
-                            # print(f'step:{step}-{train_y}')
-                            # 매개변수 경사도를 0으로 설정
                             optimizer.zero_grad()
-                            # 순전파
-                            # 학습 시에만 연산 기록을 추적
                             with torch.set_grad_enabled(phase == 'train'):
                                 outputs = model(train_X)
-                                if 'incept' in self.model_name.lower():
-                                    if '3' in self.dimension:
-                                        if phase =='train':
-                                            prediction = next(self.doActivation(outputs[0]))
-                                        else:
-                                            prediction = next(self.doActivation(outputs))
-                                    else:
-                                        prediction = next(self.doActivation(outputs))
-                                else:
-                                    prediction = next(self.doActivation(outputs))
-
+                                prediction = next(self.doActivation(outputs))
                                 _, preds = torch.max(prediction, 1)
                                 loss = lss_class(prediction, train_y)
-
                                 step_pd = preds.data.cpu().numpy()
                                 step_gt = train_y.data.cpu().numpy()
-
-                                # 학습 단계인 경우 역전파 + 최적화
                                 if phase == 'train':
                                     loss.backward()
                                     optimizer.step()
-                            
                             epoch_gt.extend(step_gt)
                             epoch_pd.extend(step_pd)
-                            # self.printStatus(epoch, step, step_len, step_loss, 'TRAIN')
+                            
                             check.Step(step_gt, step_pd)
-                            # check.showResult(step_gt, step_pd)
-                            # 통계
                             step_loss = loss.item()
                             epoch_loss += step_loss*len(train_y)
                             del train_X, train_y, prediction
+                            
                         if phase == 'train':
                             scheduler.step()
                         epoch_loss_mean = epoch_loss/dataset_sizes[phase]
+                        
                         print(f'{phase} Loss : {round(epoch_loss_mean, 6)}', end=' ')
-                        metric, cfmx = check.Epoch(epoch_gt, epoch_pd)
+                        metric, _  = check.Epoch(epoch_gt, epoch_pd) 
+                        # _ : confusion matrix
                         metrics[phase] = metric
                         metrics[phase]['Loss'] = epoch_loss_mean
-                        # 모델을 깊은 복사(deep copy)함
                         self.saveResult(epoch, phase, fold_idx, epoch_loss_mean, metric)
                         
-                        key_metric = 'F1'
                         if phase=='train' : 
                            epoch_loss_train=epoch_loss_mean
                            if best_train <= metrics[phase][key_metric]:
                                 best_train = metrics[phase][key_metric]
-
                         else: 
                             epoch_loss_valid = epoch_loss_mean
                             if self.previous_BEST[fold_idx-1]<= metrics[phase][key_metric]:
@@ -688,9 +505,6 @@ class train():
                                 best_model_wts = copy.deepcopy(model.state_dict())
                                 self.previous_BEST[fold_idx-1] = metrics[phase][key_metric]
                                 self.total_Best_cm[fold_idx-1] = metrics[phase]
-                                best_epoch_gt = epoch_gt
-                                best_epoch_pd = epoch_pd
-                                # self.roc_plot(fold_idx, epoch_gt, epoch_pd, phase)
 
                             if previous_loss >= epoch_loss_valid:
                                 previous_loss = epoch_loss_valid
@@ -702,102 +516,13 @@ class train():
                             writer.add_scalars('F1',  {'train':metrics['train']['F1'], 'valid':metrics['valid']['F1'] }, epoch)
                     epoch += 1
                     writer.close()
-
-                # thsh = {'1':0.87-cnt%100, '2': 0.87-cnt%100, '3':0.87-cnt%100, '4':0.84-cnt%100, '5':0.87-cnt%100} # seed 33
-                if self.previous_BEST[fold_idx-1]>=thsh[f'{fold_idx}']:
-                # if self.previous_BEST[fold_idx-1]>=0.8:
+                
+                if self.previous_BEST[fold_idx-1]>=dig_score[f'{fold_idx}']:
                     self.y_folds.extend(epoch_gt)
                     self.y_preds_folds.extend(epoch_pd)
                     self.saveModel('best', fold_idx, best_epoch, best_model_wts, best_loss)
-                    # self.roc_plot(best_epoch_gt, best_epoch_pd, 'validation', fold_idx)
-                    isGreat = True
+                    dig = False
                     break
-                    # if fold_idx == 1 :
-                    #     return 
-                    # return ###        
-
-    def roc_plot(self, y, y_pred, phase, fold_idx):
-        import matplotlib.pyplot as plt
-        from sklearn.metrics import RocCurveDisplay, auc, roc_curve
-
-        roc_dir = os.path.join(self.roc_plot_dir, phase)
-        os.makedirs(roc_dir, exist_ok=True)                            
-        name = f"roc_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}_{fold_idx}.png"
-        roc_path = os.path.join(roc_dir, name)
-
-        RocCurveDisplay.from_predictions(y, y_pred)
-        plt.xlabel("False Positive Rate")
-        plt.ylabel("True Positive Rate")
-        plt.title(f"{phase} - Normal, Abnormal ROC curve.")
-        plt.legend(loc="lower right")
-        plt.savefig(roc_path)
-
-
-        # fpr = dict()
-        # tpr = dict()
-        # roc_auc = dict()
-        # n_classes = 2
-
-        # for i in range(n_classes):
-        #     fpr[i], tpr[i], _ = roc_curve(y[:, i], y_pred[:, i])
-        #     roc_auc[i] = auc(fpr[i], tpr[i])
-        # fpr["micro"], tpr["micro"], _ = roc_curve(y.ravel(), y_pred.ravel())
-        # roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])        
-
-        # # First aggregate all false positive rates
-        # all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
-
-        # # Then interpolate all ROC curves at this points
-        # mean_tpr = np.zeros_like(all_fpr)
-        # for i in range(n_classes):
-        #     mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
-
-        # # Finally average it and compute AUC
-        # mean_tpr /= n_classes
-
-        # fpr["macro"] = all_fpr
-        # tpr["macro"] = mean_tpr
-        # roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
-
-        # # Plot all ROC curves
-        # plt.figure()
-        # plt.plot(
-        #     fpr["micro"],
-        #     tpr["micro"],
-        #     label="micro-average ROC curve (area = {0:0.2f})".format(roc_auc["micro"]),
-        #     color="deeppink",
-        #     linestyle=":",
-        #     linewidth=4,
-        # )
-
-        # plt.plot(
-        #     fpr["macro"],
-        #     tpr["macro"],
-        #     label="macro-average ROC curve (area = {0:0.2f})".format(roc_auc["macro"]),
-        #     color="navy",
-        #     linestyle=":",
-        #     linewidth=4,
-        # )
-
-        # colors = cycle(["aqua", "darkorange", "cornflowerblue"])
-        # for i, color in zip(range(n_classes), colors):
-        #     plt.plot(
-        #         fpr[i],
-        #         tpr[i],
-        #         color=color,
-        #         lw=lw,
-        #         label="ROC curve of class {0} (area = {1:0.2f})".format(i, roc_auc[i]),
-        #     )
-
-        # plt.plot([0, 1], [0, 1], "k--", lw=lw)
-        # plt.xlim([0.0, 1.0])
-        # plt.ylim([0.0, 1.05])
-        # plt.xlabel("False Positive Rate")
-        # plt.ylabel("True Positive Rate")
-        # plt.title(f"{phase} - Normal, Abnormal ROC curve.")
-        # plt.legend(loc="lower right")
-        # plt.savefig(roc_path)
-
 
     def retrain(self, data_handler):
         data_handler.set_dataset('train')
@@ -815,8 +540,8 @@ class train():
                 print('-'*46)
                 ch = False
             cnt = 0
-            isGreat = False
-            while not isGreat:
+            digging = False
+            while not digging:
                 cnt += 1
                 previous_BEST = 0.   
                 self._gamma = 0.94
@@ -876,7 +601,6 @@ class train():
                             if self.classes <3:
                                 check.Step(step_gt, step_pd)
                             # check.showResult(step_gt, step_pd)
-                            # 통계
                             step_loss = loss.item()
                             epoch_loss += step_loss*len(train_y)
                             del train_X, train_y, prediction
@@ -890,7 +614,6 @@ class train():
                         metrics[phase] = metric
                         metrics[phase]['Loss'] = epoch_loss_mean
                         self.saveResult(epoch, 'retrain', fold_idx, epoch_loss_mean, metric, cfmx)
-                        # 모델을 깊은 복사(deep copy)함
                         
                         if self.classes == 2:
                             if phase=='train' : 
@@ -910,7 +633,6 @@ class train():
                                 metric_for_thresh = metric[thsh_key]
                             elif 'f1' in thsh_key:
                                 metric_for_thresh = metric['macro avg']['f1-score']
-                            # 모델을 깊은 복사(deep copy)함
                             
                             if phase=='train' : 
                                 epoch_loss_train=epoch_loss_mean
@@ -924,17 +646,13 @@ class train():
                 writer.close()
                 if previous_BEST>0.85:
                     self.saveModel('retrain', fold_idx, best_epoch, best_model_wts, best_loss)
-                    isGreat = True
+                    digging = True
                     break
-            # if fold_idx == 1:
-            #     return
-            
    
     def AEpreTrain(self, data_handler):
-        # args = self.args
-        # args.disease = 'NORMAL AMD DR CNV CSC RVO OTHERS'
-        # data_handler = Data_Handler(args)
-        # data_handler(pre_train=True)
+        '''
+        This function is for the autoencoder transfer learning.
+        '''
         self.lr = self.pre_trained_lr
         self.batch = self.pre_trained_batch
         # lr = 0.001(default) -> 0.0003 -> 0.003 -> 0.01 -> +scheduler
@@ -1030,77 +748,6 @@ class train():
         writer.close()
         del trainloader
 
-    def initFC(self, model, args, lr):
-        # for initializing FC Layer with learned model.
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        
-        model_name     = args.model
-        optimizer_name = args.optimizer.lower()
-        loss_name      = args.loss.lower()
-        batch          = args.batch
-        dimension      = args.dimension
-
-        init_check_dir = f"./checkpoint/initial/{model_name}/{dimension}"
-        init_check_name = f"model_b{batch}_{optimizer_name}_{loss_name}_{lr:.0E}.pth"
-        init_check_path = os.path.join(init_check_dir, init_check_name)
-        init_check = torch.load(init_check_path)
-
-        init_weight, init_bias = dict(), dict()
-        cnt = 0 
-        for k,v in init_check['model_state_dict'].items():
-            if 'fc' in k:
-                if 'weight' in k : init_weight[cnt]=v.data.cpu().numpy()
-                else : 
-                    init_bias[cnt]=v.data.cpu().numpy()
-                    cnt+=1
-        
-        base_weight, base_bias = dict(), dict()
-        cnt = 0
-        for i in model.fc:
-            if not isinstance(i, nn.Dropout):
-                base_weight[cnt] = i.weight.data.cpu().numpy()
-                base_bias[cnt]   = i.bias.data.cpu().numpy()
-                cnt+=1
-
-        params_weight, params_bias = dict(), dict()
-        for i in range(len(init_weight)):
-            params_weight[f'init{i}'] = init_weight[i].reshape(-1)
-            params_weight[f'base{i}'] = base_weight[i].reshape(-1)
-            params_bias[f'init{i}'] = init_bias[i].reshape(-1)
-            params_bias[f'base{i}'] = base_bias[i].reshape(-1)
-        
-        f, axs = plt.subplots(4,1, figsize=(10,15))
-        for i in range(4):
-            axs[i].set_title(f"nn.Linear[{i}]'s Bias", size=10)
-            sns.distplot(params_bias[f'base{i}'], ax=axs[i], label='pytorch')
-            sns.distplot(params_bias[f'init{i}'], ax=axs[i], label='trained')
-            axs[i].legend()
-        plt.suptitle('Bias Histogram',fontsize=30)
-        plt.savefig('biasCompare.png')
-
-        f, axs = plt.subplots(4,1, figsize=(10,15))
-        for i in range(4):
-            axs[i].set_title(f"nn.Linear[{i}]'s Weight", size=10)
-            sns.distplot(params_weight[f'base{i}'], ax=axs[i], label='pytorch')
-            sns.distplot(params_weight[f'init{i}'], ax=axs[i], label='trained')
-            axs[i].legend()
-        plt.suptitle('Weight Histogram',fontsize=30)
-        plt.savefig('weightCompare.png')
-        print()
-
-        #init_check  dml 
-        return init_check['load_state_dict']
-
-    # def init_optimizer(self, p):
-    #     """Initialize the optimizer and use checkpoint weights if resume is True."""
-    #     optimizer = getattr(torch.optim, self.optimizer_name)(
-    #         filter(lambda x: x.requires_grad, p),
-    #         lr=self.learning_rate,
-    #         weight_decay=self.weight_decay,
-    #     )
-    #     return optimizer
-
     def initWriter(self, fold_idx, mode, cnt=None, writer_remove = False):
         assert mode is not None, 'Set the wrtier mode. f"{#}fold" or "retrain".'
         tb = self.tensorboard_dir 
@@ -1124,26 +771,6 @@ class train():
         elif self.loss_name == 'ce': hypothesis = prediction
         else : raise ValueError("Choose correct Activation Function")
         yield hypothesis
-        
-    def getValidSet(self, trainset, valid_idx):
-        valid_set = copy.deepcopy(trainset)
-        valid_set.X = [valid_set.X[idx] for idx in valid_idx]
-        valid_set.y = [valid_set.y[idx] for idx in valid_idx]
-        valid_set.label = dict(list(valid_set.label.items())[idx] for idx in valid_idx)
-        valid_set.NIFTIPATH = list(valid_set.getNiftiPath())
-        valid_set.num_disease = valid_set.countDiseases(valid_set.label)
-        self.len_valid = len(valid_set)
-        yield valid_set
-
-    def getTrainSet(self, trainset, train_idx):
-        train_set = copy.deepcopy(trainset)
-        train_set.X = [train_set.X[idx] for idx in train_idx]
-        train_set.y = [train_set.y[idx] for idx in train_idx]
-        train_set.label = dict(list(train_set.label.items())[idx] for idx in train_idx)
-        train_set.NIFTIPATH = list(train_set.getNiftiPath())
-        train_set.num_disease = train_set.countDiseases(train_set.label)
-        self.len_train = len(train_set)
-        yield train_set
 
     def getLoss(self, w=None):
         if   self.loss_name=='ce'  : loss = nn.CrossEntropyLoss() # same as nn.LogSoftMax + nn.NLLLoss
@@ -1171,10 +798,9 @@ class train():
             if   self.model_name == "VGG16_3D"  : model = VGG16_3D(self.classes)
             elif self.model_name == "CV5FC2_3D" : model = CV5FC2_3D(self.classes)
             elif self.model_name == "CV3FC2_3D" : model = CV3FC2_3D(self.classes)
-            elif self.model_name == "SAE_3D"    : model = SAE()
             elif self.model_name == "Incept_3D" : model = Inception3_3D(num_classes=self.classes)
             elif "eff" in self.model_name.lower() : model = EfficientNet3D.from_name("efficientnet-b4", override_params={'num_classes': 2}, in_channels=1)
-            elif "res" in self.model_name.lower() : model = generate_model(model_depth=self.args.res_depth, n_classes=self.classes)# model = ResNet_3D(self.classes).to(self.device)
+            elif "res" in self.model_name.lower() : model = generate_model(model_depth=self.args.res_depth, n_classes=self.classes)
             # elif 'vit' in self.model_name.lower() : model = VIT_3D(self.classes, self.is_transfered)
             else : raise ValueError("Choose correct model")
         else:
@@ -1183,7 +809,6 @@ class train():
             elif 'vgg' in self.model_name.lower():
                 vgg_depth = int(self.model_name.split('_')[1])
                 model = VGG_2D(self.classes, self.is_transfered, depth=vgg_depth)
-                # model = VGG16_2D(self.classes, self.is_transfered)
             elif 'google' in self.model_name.lower():
                 model = GOOGLE_2D(self.classes, self.is_transfered)
             elif 'incept' in self.model_name.lower():
@@ -1209,8 +834,7 @@ class train():
             assert os.path.isdir(model_dir), f'{model_dir} is not exist.'
             bch = self.pre_trained_batch
             lr = self.pre_trained_lr
-            #self.loss_name = 'nll'
-            #self.optimizer_name='asgd'
+            
             if phase =='autoencoder_total':           
                 name = f"total_b{bch}_{self.optimizer_name}_{self.loss_name}_{lr:.0E}_{self.ae_data_num}.pth"
             elif phase =='autoencoder':    
@@ -1222,6 +846,7 @@ class train():
             print(f'model path : {model_path}')
             model = next(self.getModel())
             optimizer = next(self.getOptimizer(model.parameters()))
+            
             # load model
             checkpoint = torch.load(model_path)
             self.best_epoch = checkpoint['epoch']
@@ -1285,7 +910,7 @@ class train():
 
     def saveResult(self, epoch, status, fold_idx, loss_epoch_mean, metric, cfmx=None):
         result_dir = os.path.join(self.result_dir, status)
-        if self.preTrain and metric=='ae_pretrain':
+        if self.ae_pre_train and metric=='ae_pretrain':
             ae_result_dir  = f"{self.result_dir}/pretrain/ae_o"
             os.makedirs(ae_result_dir, exist_ok=True)
             ae_result_path = f"pretrain_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.txt"
@@ -1356,91 +981,6 @@ class train():
                             f.write('\n')
                     f.write(f"\n")
 
-    def saveAVGResults(self, total_Best_cm):
-        f1,pcs,rcl,acc,ba,sp=[],[],[],[],[],[]
-        ae = 'ae_o' if self.is_transfered else 'ae_x'
-        result_dir = f"{self.result_dir}/valid/{ae}"
-        os.makedirs(result_dir, exist_ok=True)
-        file_name = os.path.join(result_dir, f"valid_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.txt")
-
-        for i in range(len(total_Best_cm)):
-            f1.append(total_Best_cm[i]['F1'])
-            pcs.append(total_Best_cm[i]['PCS'])
-            rcl.append(total_Best_cm[i]['RCL'])
-            acc.append(total_Best_cm[i]['ACC'])
-            ba.append(total_Best_cm[i]['BA'])
-            sp.append(total_Best_cm[i]['SP'])
-
-        f1_mean , pcs_mean, rcl_mean = np.mean(f1),  np.mean(pcs),  np.mean(rcl)
-        acc_mean, ba_mean,  sp_mean  = np.mean(acc), np.mean(ba),   np.mean(sp)
-        
-        with open(file_name, 'w') as f:
-            f.write(f"[{self.model_name}] - Dimension:{self.dimension}, Filter:{self.filter}, AE pre-train:{self.is_transfered}")
-            f.write(f"{'SP':3}:{sp_mean:.5f}\n{'BA':3}:{ba_mean:.5f}, {'ACC':3}:{acc_mean:.6f}\n")
-            f.write(f"{'PCS':3}:{pcs_mean:.5f}, {'RCL':3}:{rcl_mean:.5f}, {'F1':3}:{f1_mean:.5f}\n")
-            f.write(f"\n")
-
-
-    def saveTestMetric(self, status, folds_metric):
-        '''
-        parameters
-            status : 'test'
-            metric : metrics of all folds
-        function
-            mode in ['mean', 'best']
-            path = getPath(status)
-            metric = sumFoldResult(metric, mode)
-            saveMetric(path, metric, mode)
-        return
-            None
-        '''
-        def getPath(status, mode=None):
-            ae = 'ae_o' if self.is_transfered else 'ae_x'
-            
-            result_dir = os.path.join(self.result_dir, ae, mode)
-            os.makedirs(result_dir, exist_ok=True)
-            file_path = os.path.join(result_dir, f"{status}_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.txt")
-            return file_path
-
-        def sumFoldResult(metric, mode=None):
-            f1_list, pcs_list, rcl_list = [], [], []
-            acc_list, sp_list, se_list = [], [], []
-            
-            for i in range(fold_size):
-                f1_list.append(metric[i]['F1'])
-                pcs_list.append(metric[i]['PCS'])
-                rcl_list.append(metric[i]['RCL'])
-                acc_list.append(metric[i]['ACC'])
-                sp_list.append(metric[i]['SP'])
-                se_list.append(metric[i]['SE'])
-
-            if mode == 'mean':
-                f1, pcs, rcl = np.mean(f1_list), np.mean(pcs_list), np.mean(rcl_list)
-                acc, sp , se = np.mean(acc_list), np.mean(sp_list), np.mean(se_list)
-            else:
-                best_idx = np.argmax(f1_list)
-                f1, pcs, rcl = f1_list[best_idx],  pcs_list[best_idx], rcl_list[best_idx]
-                acc, sp,  se = acc_list[best_idx], sp_list[best_idx],  se_list[best_idx]
-                
-            return f1, pcs, rcl, acc, sp, se
-
-        def saveMetric(path, metric, mode=None):
-            f1, pcs, rcl, acc, sp, se = metric
-            with open(path, 'w') as f:
-                if mode =='best':
-                    f.write(f"[{self.model_name}]-BestFold[{best_idx}]-{self.dimension}-{self.filter}-AE:{self.is_transfered}\n")
-                else:
-                    f.write(f"[{self.model_name}]-Mean-{self.dimension}-{self.filter}-AE:{self.is_transfered}\n")
-                f.write(f"{'SP':3}:{sp :.5f}, {'SE':3}:{se :.5f}, {'ACC':3}:{acc :.6f}\n")
-                f.write(f"{'PCS':3}:{pcs :.5f}, {'RCL':3}:{rcl :.5f}, {'F1':3}:{f1 :.5f}\n")
-                f.write(f"\n")
-
-        best_idx, fold_size = 0, len(folds_metric)
-        for m in ['mean', 'best']:
-            metric_path = getPath(status, mode=m)
-            metric=sumFoldResult(folds_metric, mode=m)
-            saveMetric(metric_path, metric, mode=m)
-
     def printDataNum(self,fold_idx, dataset):
         train_set = list(dataset['train'])
         valid_set = list(dataset['valid'])
@@ -1461,10 +1001,3 @@ class train():
             print(f"{'Epoch':5}[{epoch:2d}/{self.epoch}]",end=' ')
         print(f"{'Step':4}[{step+1:2d}/{step_len:2d}]",end=' ')
         print(f"{'LOSS':4}[{loss:>5f}]-[{status}]")
-
-###############
-# right after train's step_gt to loss : for train and validate
-                    # normedWeights = [1/list(step_gt).count(0) if list(step_gt).count(0) != 0 else 1, 1/list(step_gt).count(1) if list(step_gt).count(1) != 0 else 1]
-                    # # normedWeights = [list(step_gt).count(1), list(step_gt).count(0)]
-                    # normedWeights = torch.FloatTensor(normedWeights).to(self.device)
-                    # loss_clss = next(self.getLoss(normedWeights))

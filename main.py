@@ -45,7 +45,7 @@ def getArguments():
     parser.add_argument('--dimension', nargs='?', default='3d', type=str,
                         help='Choose the dimension between 2d/3d')
 
-    parser.add_argument('--model', nargs='?', default='Res_18_3D', type=str,
+    parser.add_argument('--model', nargs='?', default='Incept_3D', type=str,
                         help='Model name : VGG_16_2D, VGG_19_2D, \
                               Res_10_2D, Res_18_2D, Res_50_2D, VIT_2D,\
                               Incept_v3_2D, Google_2D,\
