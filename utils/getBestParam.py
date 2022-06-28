@@ -5,7 +5,7 @@ def getBestParam(args):
 	disease = args.disease.split()
 	disease.remove('NORMAL')
 	disease = ('_').join(sorted(disease))
-	ae = 'ae_o' if args.ae =='True' else 'ae_x'
+	ae = 'ae_o' if args.ae_pre_train =='True' else 'ae_x'
 	best_parameter_dir = os.path.join('./Data/output/best_parameter',disease, args.model, args.filter, ae)
 	os.makedirs(best_parameter_dir, exist_ok= True)
 	best_param ={f'fold{idx}':{} for idx in range(1,fold_num+1)} 

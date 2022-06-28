@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from medcam.backends.base import _BaseWrapper
-from utils import medcam_utils
+from Medcam import medcam_utils
 from functools import wraps
 
 # Changes the used method to hook into backward

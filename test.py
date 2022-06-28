@@ -47,7 +47,7 @@ class test():
         self.filter         = args.filter
         self.dimension      = args.dimension
         self.flt            = 'flt_o' if args.flatten else 'flt_x'
-        self.ae             = 'ae_o' if self.args.ae else 'ae_x'
+        self.ae             = 'ae_o' if self.args.ae_pre_train else 'ae_x'
         
         self.previous_BEST  = [-99 for _ in range(5)]
         self.device         = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -108,7 +108,7 @@ class test():
                 if 'valid' in phase:
                     data_handler.set_dataset(phase, fold_idx)
                     testloader = DataLoader(data_handler, batch_size=batch)
-                    self.current_disease = sorted(list(data_handler.getDiseaseLabel().keys()))
+                    self.current_disease = sorted(list(data_handler.get_disease_label().keys()))
 
                     label = data_handler.getDiseaseLabel() if self.classes > 2 else self.label_table
                     check = checking(lss=self.loss_name, labels=label, isMerge=self.isMerge)        
@@ -407,7 +407,7 @@ class test():
             # init_model
             model = next(self.getModel())
 
-            if torch.cuda.device_count() > 1:
+            if torch.cuda.device_count() > 1 and self.args.res_depth > 18:
                 print("Let's use", torch.cuda.device_count(), "GPUs!")
                 model = nn.DataParallel(model)     
 

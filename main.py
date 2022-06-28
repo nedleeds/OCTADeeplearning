@@ -36,7 +36,7 @@ def getArguments():
     parser.add_argument('--fold_num', nargs='?', default=5, type=int, 
                         help='Enter the # of folds.(default: 5)')
 
-    parser.add_argument('--flatten', nargs='?', default='False', type=str_to_bool,
+    parser.add_argument('--flatten', nargs='?', default='True', type=str_to_bool,
                         help='Flatten for 3D Volumes: True or False')
 
     parser.add_argument('--test_rate', nargs='?', default=0.15, type=float,
@@ -45,7 +45,7 @@ def getArguments():
     parser.add_argument('--dimension', nargs='?', default='3d', type=str,
                         help='Choose the dimension between 2d/3d')
 
-    parser.add_argument('--model', nargs='?', default='Incept_3D', type=str,
+    parser.add_argument('--model', nargs='?', default='Res_18_3D', type=str,
                         help='Model name : VGG_16_2D, VGG_19_2D, \
                               Res_10_2D, Res_18_2D, Res_50_2D, VIT_2D,\
                               Incept_v3_2D, Google_2D,\
@@ -59,13 +59,13 @@ def getArguments():
     parser.add_argument('--loss', nargs='?', default='nll', type=str,
                         help='Choose the loss function : ce, bce, mse, nll, fcl')
 
-    parser.add_argument('--learningrate', nargs='?', default=4e-3, type=float, #5e-3 for ae_pre_train
+    parser.add_argument('--learningrate', nargs='?', default=3e-3, type=float, #5e-3 for ae_pre_train
                         help='Set the learning Rate')
 
     parser.add_argument('--epoch', nargs='?', default=200, type=int,
                         help='Set the epoch Number')
 
-    parser.add_argument('--batch', nargs='?', default=1, type=int, #32 for ae_pre_train
+    parser.add_argument('--batch', nargs='?', default=8, type=int, #32 for ae_pre_train
                         help='Set the batch size')
 
     parser.add_argument('--disease', nargs='?', default="NORMAL AMD CSC DR RVO", type=str,
@@ -103,9 +103,9 @@ def getArguments():
 
     parser.add_argument('--patch_mode', default='False', type=str_to_bool)
     
-    parser.add_argument('--test_mode' , default='False', type=str_to_bool)
+    parser.add_argument('--test_mode' , default='True', type=str_to_bool)
     
-    parser.add_argument('--medcam', default='False', type=str_to_bool)
+    parser.add_argument('--medcam', default='True', type=str_to_bool)
     
     parser.add_argument('--ae_learning_rate', nargs='?', default=5e-3, type=float) # 5e-3: loss 483-0.001607 # pre-train LR
     
