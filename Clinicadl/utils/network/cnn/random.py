@@ -1,7 +1,7 @@
 import numpy as np
 
-from clinicadl.utils.network.network_utils import *
-from clinicadl.utils.network.sub_network import CNN
+from Clinicadl.utils.network.network_utils import *
+from Clinicadl.utils.network.sub_network import CNN
 
 
 class RandomArchitecture(CNN):

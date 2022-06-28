@@ -1,14 +1,15 @@
-import cv2
-import numpy as np
-import matplotlib.cm as cm
-import nibabel as nib
-import torch
-from torch.nn import functional as F
-from functools import reduce
-import operator
-from pathlib import Path
 import os
+import cv2
+import torch
+import operator
+import numpy as np
+import nibabel as nib
+import matplotlib.cm as cm
+
+from pathlib import Path
 from functools import wraps
+from functools import reduce
+from torch.nn import functional as F
 
 MIN_SHAPE = (500, 500)
 

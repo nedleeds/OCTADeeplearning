@@ -1,6 +1,6 @@
 from os import path
 
-from clinicadl.utils.split_manager.split_manager import SplitManager
+from Clinicadl.utils.split_manager.split_manager import SplitManager
 
 
 class SingleSplit(SplitManager):

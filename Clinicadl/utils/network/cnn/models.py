@@ -4,9 +4,9 @@ import torch.utils.model_zoo as model_zoo
 from torch import nn
 from torchvision.models.resnet import BasicBlock
 
-from clinicadl.utils.network.cnn.resnet import ResNetDesigner, model_urls
-from clinicadl.utils.network.network_utils import PadMaxPool2d, PadMaxPool3d
-from clinicadl.utils.network.sub_network import CNN
+from Clinicadl.utils.network.cnn.resnet import ResNetDesigner, model_urls
+from Clinicadl.utils.network.network_utils import PadMaxPool2d, PadMaxPool3d
+from Clinicadl.utils.network.sub_network import CNN
 
 
 def get_layers_fn(input_size):

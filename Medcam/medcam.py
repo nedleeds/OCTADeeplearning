@@ -1,5 +1,5 @@
-from utils import medcam_utils
-from utils import medcam_inject
+from Medcam import medcam_utils
+from Medcam import medcam_inject
 from medcam.evaluation import evaluation_utils, evaluator
 from functools import wraps
 

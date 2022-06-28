@@ -3,8 +3,8 @@ from collections import OrderedDict
 import torch
 from torch import nn
 
-from clinicadl.utils.network.network import Network
-from clinicadl.utils.network.network_utils import (
+from Clinicadl.utils.network.network import Network
+from Clinicadl.utils.network.network_utils import (
     CropMaxUnpool2d,
     CropMaxUnpool3d,
     PadMaxPool2d,

@@ -6,10 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import nibabel as nib
-import matplotlib
-import matplotlib.pyplot as plt
 import torch
-import torch.multiprocessing as mp
 import torch.nn as nn
 import torchsummary
 
@@ -34,6 +31,7 @@ def seed_everything(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    ## Totally for reproducibility.
     # torch.backends.cudnn.deterministic = True
     # torch.cuda.manual_seed_all(seed) # if use multi-GPU
     # torch.backends.cudnn.benchmark = True
@@ -129,58 +127,6 @@ class train():
         self.disease_index = data_handler.sort_table(reverse=False)
         self.index_disease = data_handler.sort_table(reverse=True)
         self.label_table   = [self.disease_index, self.index_disease]
-
-    def testAEpreTrain(self, data_handler):
-        self.lr = self.pre_trained_lr
-        self.ae_data_num = 483
-        # self.optimizer_name = self.args.transfer_learning_optimizer
-
-        # data_handler.set_dataset('train', data_num= 130 if self.ae_data_num == 500 else None) # fold_idx == None -> train 전체 호출.
-        data_handler.setSkipList()
-        data_handler.loadLabel_setData()
-
-        data_handler.set_dataset('total')
-        self.total_size = len(data_handler.getX()['total'])
-        
-        trainloader = DataLoader(data_handler, batch_size=self.pre_trained_batch)
-
-        nii_mask_dir =  f"./data/Nifti/In/Transformed/OCTA_SRL_256_V2"
-        nii_output_dir = f"./data/Nifti/In/Transformed/AECheck/Reconstructed/Data{self.ae_data_num}"
-        os.makedirs(nii_output_dir, exist_ok=True)
-
-        model_ae = next(self.loadModel("autoencoder_total"))
-        model_ae.eval()
-        
-        print(f"{self.ae_data_num} data have been loaded.")
-        patients_list = [id_ for id_ in data_handler.get_current_data()]
-        # MinMax_dict = totalloader.dataset.MinMax
-        
-        for idx, ( test_X, _ ) in enumerate(trainloader): 
-            patient = patients_list[idx]
-            if patient in [10001, 10005, 10167, 10293, 10301, 10355, 10410, 10480]:
-                # Get reconstructed result
-                nii_input = test_X[0].reshape(192,-1,192).data.cpu().numpy()
-                nii_output = model_ae(test_X[0].unsqueeze_(1)).data.cpu().numpy() # prediction            
-                recon = nii_output[0][0].reshape(192, -1, 192) # get 3 dim data
-                recon = recon.astype(np.float32)
-                
-                # Masking 
-                mask_nii = nib.load(os.path.join(nii_mask_dir, f"{patient}.nii.gz")) # load masking volume
-                m_aff, m_head = mask_nii.affine, mask_nii.header
-                mask_arr = np.asarray(mask_nii.dataobj)
-                mask_srl_arr = np.zeros(np.shape(mask_arr))
-                mask_srl_arr[mask_arr>0] = 1
-                
-                recon = np.multiply(recon, mask_srl_arr)
-                # recon = np.uint8((recon-recon.min())/(recon.max()-recon.min())*255)
-                # masked_recon = np.multiply(recon, mask_srl_arr)
-
-                img = nib.Nifti1Image(recon, affine=m_aff, header=m_head)
-                nii_dir_dst_recon = os.path.join(nii_output_dir, f"{patient}_SRL_RECON.nii.gz")
-                nib.save(img, nii_dir_dst_recon)
-                
-                print(f"{patient} saved.")
-        print()
 
     def multi_classification(self, data_handler):
         for fold_idx in range(1, self.fold_num+1):
@@ -747,6 +693,58 @@ class train():
         self.saveModel('autoencoder_total', -1, best_epoch, total_model_wght, min_loss)
         writer.close()
         del trainloader
+
+    def testAEpreTrain(self, data_handler):
+        self.lr = self.pre_trained_lr
+        self.ae_data_num = 483
+        # self.optimizer_name = self.args.transfer_learning_optimizer
+
+        # data_handler.set_dataset('train', data_num= 130 if self.ae_data_num == 500 else None) # fold_idx == None -> train 전체 호출.
+        data_handler.setSkipList()
+        data_handler.loadLabel_setData()
+
+        data_handler.set_dataset('total')
+        self.total_size = len(data_handler.getX()['total'])
+        
+        trainloader = DataLoader(data_handler, batch_size=self.pre_trained_batch)
+
+        nii_mask_dir =  f"./data/Nifti/In/Transformed/OCTA_SRL_256_V2"
+        nii_output_dir = f"./data/Nifti/In/Transformed/AECheck/Reconstructed/Data{self.ae_data_num}"
+        os.makedirs(nii_output_dir, exist_ok=True)
+
+        model_ae = next(self.loadModel("autoencoder_total"))
+        model_ae.eval()
+        
+        print(f"{self.ae_data_num} data have been loaded.")
+        patients_list = [id_ for id_ in data_handler.get_current_data()]
+        # MinMax_dict = totalloader.dataset.MinMax
+        
+        for idx, ( test_X, _ ) in enumerate(trainloader): 
+            patient = patients_list[idx]
+            if patient in [10001, 10005, 10167, 10293, 10301, 10355, 10410, 10480]:
+                # Get reconstructed result
+                nii_input = test_X[0].reshape(192,-1,192).data.cpu().numpy()
+                nii_output = model_ae(test_X[0].unsqueeze_(1)).data.cpu().numpy() # prediction            
+                recon = nii_output[0][0].reshape(192, -1, 192) # get 3 dim data
+                recon = recon.astype(np.float32)
+                
+                # Masking 
+                mask_nii = nib.load(os.path.join(nii_mask_dir, f"{patient}.nii.gz")) # load masking volume
+                m_aff, m_head = mask_nii.affine, mask_nii.header
+                mask_arr = np.asarray(mask_nii.dataobj)
+                mask_srl_arr = np.zeros(np.shape(mask_arr))
+                mask_srl_arr[mask_arr>0] = 1
+                
+                recon = np.multiply(recon, mask_srl_arr)
+                # recon = np.uint8((recon-recon.min())/(recon.max()-recon.min())*255)
+                # masked_recon = np.multiply(recon, mask_srl_arr)
+
+                img = nib.Nifti1Image(recon, affine=m_aff, header=m_head)
+                nii_dir_dst_recon = os.path.join(nii_output_dir, f"{patient}_SRL_RECON.nii.gz")
+                nib.save(img, nii_dir_dst_recon)
+                
+                print(f"{patient} saved.")
+        print()
 
     def initWriter(self, fold_idx, mode, cnt=None, writer_remove = False):
         assert mode is not None, 'Set the wrtier mode. f"{#}fold" or "retrain".'

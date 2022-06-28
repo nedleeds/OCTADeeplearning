@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 
-from clinicadl.utils.network.vae.base_vae import BaseVAE
-from clinicadl.utils.network.vae.vae_utils import (
+from Clinicadl.utils.network.vae.base_vae import BaseVAE
+from Clinicadl.utils.network.vae.vae_utils import (
     DecoderLayer3D,
     EncoderLayer3D,
     VAE_Decoder,

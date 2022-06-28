@@ -11,16 +11,16 @@ import torch
 from torch.utils.data import DataLoader
 
 # from clinicadl.extract.extract_utils import compute_folder_and_file_type
-from clinicadl.utils.caps_dataset.data import (
+from Clinicadl.utils.caps_dataset.data import (
     get_transforms,
     load_data_test,
     return_dataset,
 )
-from clinicadl.utils.early_stopping import EarlyStopping
-from clinicadl.utils.maps_manager.logwriter import LogWriter, setup_logging
-from clinicadl.utils.metric_module import RetainBest
-from clinicadl.utils.network.network import Network
-from clinicadl.utils.seed import get_seed, pl_worker_init_function, seed_everything
+from Clinicadl.utils.early_stopping import EarlyStopping
+from Clinicadl.utils.maps_manager.logwriter import LogWriter, setup_logging
+from Clinicadl.utils.metric_module import RetainBest
+from Clinicadl.utils.network.network import Network
+from Clinicadl.utils.seed import get_seed, pl_worker_init_function, seed_everything
 
 logger = getLogger("clinicadl")
 
@@ -1312,7 +1312,7 @@ class MapsManager:
 
     def _write_training_data(self):
         """Writes the TSV file containing the participant and session IDs used for training."""
-        from clinicadl.utils.caps_dataset.data import load_data_test
+        from Clinicadl.utils.caps_dataset.data import load_data_test
 
         train_df = load_data_test(
             self.tsv_path,
@@ -1630,7 +1630,7 @@ class MapsManager:
             use_cpu (bool): If given, a new value for the device of the model will be computed.
             network (int): Index of the network trained (used in multi-network setting only).
         """
-        import clinicadl.utils.network as network_package
+        import Clinicadl.utils.network as network_package
 
         logger.debug(f"Initialization of model {self.architecture}")
         # or choose to implement a dictionary
@@ -1709,7 +1709,7 @@ class MapsManager:
     #     return split_class(**kwargs)
 
     def _init_task_manager(self, df=None, n_classes=None):
-        from clinicadl.utils.task_manager import (
+        from Clinicadl.utils.task_manager import (
             ClassificationManager,
             ReconstructionManager,
             RegressionManager,

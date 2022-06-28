@@ -1,18 +1,22 @@
-from textwrap import wrap
+import copy
 import torch
-from pathlib import Path
 import types
 import pickle
-from utils import medcam_utils
+import numpy as np
+
+from pathlib import Path
+from textwrap import wrap
+from functools import wraps
+from collections import defaultdict
+
+from Medcam import medcam
+from Medcam import medcam_utils
+from Medcam.grad_cam import GradCAM
 from medcam.backends.guided_backpropagation import GuidedBackPropagation
-from utils.grad_cam import GradCAM
 from medcam.backends.guided_grad_cam import GuidedGradCam
 from medcam.backends.grad_cam_pp import GradCamPP
-from collections import defaultdict
 from medcam.evaluation.evaluator import Evaluator
-import copy
-import numpy as np
-from functools import wraps
+
 
 def check_call(func):
     @wraps(func)

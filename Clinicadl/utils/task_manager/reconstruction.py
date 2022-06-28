@@ -1,7 +1,7 @@
 from torch import nn
 from torch.utils.data import sampler
 
-from clinicadl.utils.task_manager.task_manager import TaskManager
+from Clinicadl.utils.task_manager.task_manager import TaskManager
 
 
 class ReconstructionManager(TaskManager):

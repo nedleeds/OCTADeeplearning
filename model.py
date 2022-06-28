@@ -1,18 +1,11 @@
+import os 
 import torch
-import random
-import numpy as np
 import torch.cuda
 import torch.nn as nn
-import os 
 
 from torchvision import models
-from torch.nn.modules.activation import Sigmoid
-from clinicadl.modules     import Flatten,      Reshape,         PadMaxPool3d
-from clinicadl.modules     import PadMaxPool2d, CropMaxUnpool3d, CropMaxUnpool2d
-from clinicadl.cnn_transformer import CNN_Transformer
+from Clinicadl.cnn_transformer import CNN_Transformer
 
-import abc
-from logging import getLogger
 
 class ResNet_3D(nn.Module):
     def __init__(self, num_class):

@@ -11,7 +11,7 @@ import cv2
 import nibabel as nib
 from torch.utils.data import DataLoader
 
-from utils import medcam
+from Medcam import medcam
 from utils.vit import ViT
 from utils.resnet import generate_model
 from utils.evaluate import checking

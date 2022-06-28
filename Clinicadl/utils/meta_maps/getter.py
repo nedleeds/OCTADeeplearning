@@ -6,7 +6,7 @@ from os import path
 
 import pandas as pd
 
-from clinicadl import MapsManager
+from Clinicadl import MapsManager
 
 
 def meta_maps_analysis(launch_dir, evaluation_metric="loss"):
