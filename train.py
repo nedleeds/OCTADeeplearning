@@ -209,24 +209,7 @@ class train():
                             model.eval()   # 모델을 평가 모드로 설정
                         epoch_loss = 0.0
                         
-                        for step, (train_X, train_y) in enumerate(DataLoader(data_handler, batch_size=self.batch, shuffle=True)):                            
-                            # train_X = train_X[0]
-                            # train_y = train_y[0].long()
-                            # # print(f'step:{step}-{train_y}')
-                            # # 매개변수 경사도를 0으로 설정
-                            # optimizer.zero_grad()
-                            # # 순전파
-                            # # 학습 시에만 연산 기록을 추적
-                            # with torch.set_grad_enabled(phase == 'train'):
-                            #     if '3' in self.dimension : outputs = model(train_X.unsqueeze_(1))
-                            #     else                     : outputs = model(train_X)
-                            #     loss = nn.CrossEntropyLoss()(outputs, train_y)
-                                
-                            #     y_pred_softmax = torch.log_softmax(outputs, dim = 1)
-                            #     _, prediction = torch.max(y_pred_softmax, dim = 1)    
-                                
-                            #     step_pd = prediction.data.cpu().numpy()
-                            #     step_gt = train_y.data.cpu().numpy()
+                        for step, (train_X, train_y) in enumerate(DataLoader(data_handler, batch_size=self.batch, shuffle=True)):
                             train_X = train_X[0] if '2' in self.dimension else train_X[0].unsqueeze_(1)
                             train_y = train_y[0].long()
                             # print(f'step:{step}-{train_y}')
@@ -321,9 +304,9 @@ class train():
         Digging is for finding out the proper weights of given models.
         Utilizing the randomly computed parts by cuda.
         '''
-        seed_everything(34)
-        check = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
         for fold_idx in range(1, self.fold_num+1):
+            seed_everything(34)
+            check = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
             data_handler.set_dataset('train', fold_idx=fold_idx)
             data_handler.set_dataset('valid', fold_idx=fold_idx)
             self.input_shape = data_handler.getInputShape()
@@ -433,7 +416,7 @@ class train():
                         epoch_loss_mean = epoch_loss/dataset_sizes[phase]
                         
                         print(f'{phase} Loss : {round(epoch_loss_mean, 6)}', end=' ')
-                        metric, _  = check.Epoch(epoch_gt, epoch_pd) 
+                        metric, _  = check.Epoch(epoch_gt, epoch_pd)
                         # _ : confusion matrix
                         metrics[phase] = metric
                         metrics[phase]['Loss'] = epoch_loss_mean
@@ -462,7 +445,7 @@ class train():
                             writer.add_scalars('F1',  {'train':metrics['train']['F1'], 'valid':metrics['valid']['F1'] }, epoch)
                     epoch += 1
                     writer.close()
-                
+                    
                 if self.previous_BEST[fold_idx-1]>=dig_score[f'{fold_idx}']:
                     self.y_folds.extend(epoch_gt)
                     self.y_preds_folds.extend(epoch_pd)
