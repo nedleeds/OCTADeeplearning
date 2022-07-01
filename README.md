@@ -25,13 +25,13 @@ Dockerfile
  ```
 You can also download the docker image through the 
 [dockerhub](https://hub.docker.com/r/paulcurk/octa3d/tags).</br>
-The basic usage of this file is consists of 2 steps.
+The basic usage of this file is consists of 2 steps (build & run).
 Each command are operated on the shell prompt.
-- Build
+- Build example
 > ```python
 >  docker build . -t octa3d
 > ```
-- Run
+- Run example
 > ```python
 >  docker run -d -it \
 >  -v /data:/root/Share/OCTA3d/data \ 
@@ -54,11 +54,19 @@ The data.py is for handling dataset.
 From the pre-processing(split patch images for 2D, clipping for 3D normalizing)
 to customize Pytorch's Dataset. 
 I was needed to do this task for each different dimension respectively.
-
+The concrete detail is described on the script through the comments.
 
 4. **[Train](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py)** <a id="R"></a></br>
 
 Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
+4-1. Classification</br>
+> Basically we utilize the pre-invented CNN models as they've been proved it's performence.</br>
+> The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
+> The models that we have used for are depicted below table.</br>
+Dimension | VGG19 | ResNet | Inception V3
+---- | ---- | ---- | ----
+2D | O | 50, 152 | O |
+3D | X | 18, 50 | O |
 
 5. **[Test](https://github.com/nedleeds/OCTADeeplearning/blob/main/test.py)** <a id="E"></a></br>
 
