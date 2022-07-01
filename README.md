@@ -42,21 +42,21 @@ Each command are operated on the shell prompt.
 </br>
 
 2. **[Main](https://github.com/nedleeds/OCTADeeplearning/blob/main/main.py)** <a id="M"></a>
-> The main function depicts overall process.
-> Using Data_Handler in [data.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py),
-> the input data for the learning has been set up.
-> All the arguements from the argparser has been described in the main.py script.
+The main function depicts overall process.
+Using Data_Handler in [data.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py),
+the input data for the learning has been set up.
+All the arguements from the argparser has been described in the main.py script.
 
 3. **[Data](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py)** <a id="D"></a>
-> The data.py is for handling dataset. 
-> From the pre-processing(split patch images for 2D, clipping for 3D normalizing)
-> to customize Pytorch's Dataset. 
-> I was needed to do this task for each different dimension respectively.
->
+The data.py is for handling dataset. 
+From the pre-processing(split patch images for 2D, clipping for 3D normalizing)
+to customize Pytorch's Dataset. 
+I was needed to do this task for each different dimension respectively.
 
-1. **[Train](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py)** <a id="R"></a> 
-> Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
+
+4. **[Train](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py)** <a id="R"></a> 
+Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
 
 5. **[Test](https://github.com/nedleeds/OCTADeeplearning/blob/main/test.py)** <a id="E"></a> 
-> Test the testset and base-on saved model, </br>
-> we visualize it by the Grad-CAM (by customizing [M3d-cam](https://github.com/MECLabTUDA/M3d-Cam)) 
+Test the testset and base-on saved model, </br>
+we visualize it by the Grad-CAM (by customizing [M3d-cam](https://github.com/MECLabTUDA/M3d-Cam)) 
