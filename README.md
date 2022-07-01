@@ -27,18 +27,18 @@ You can also download the docker image through the
 [dockerhub](https://hub.docker.com/r/paulcurk/octa3d/tags).</br>
 The basic usage of this file is consists of 2 steps.
 Each command are operated on the shell prompt.
-> - Build
->> ```python
->>  docker build . -t octa3d
->> ```
-> - Run
->> ```python
->>  docker run -d -it \
->>  -v /data:/root/Share/OCTA3d/data \ 
->>  -v /home/Project/OCTA3d:/root/Share/OCTA3d \
->>  --name "octa3d" \
->>  --rm --gpus all octa3d:latest
->> ```
+- Build
+> ```python
+>  docker build . -t octa3d
+> ```
+- Run
+> ```python
+>  docker run -d -it \
+>  -v /data:/root/Share/OCTA3d/data \ 
+>  -v /home/Project/OCTA3d:/root/Share/OCTA3d \
+>  --name "octa3d" \
+>  --rm --gpus all octa3d:latest
+> ```
 </br>
 
 2. **[Main](https://github.com/nedleeds/OCTADeeplearning/blob/main/main.py)** <a id="M"></a>
