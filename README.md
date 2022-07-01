@@ -3,12 +3,13 @@
 > This repository mainly about deep learning parts which is consists of 4 parts([main](#M), [data](#D), [train](#R), [test](#E)).</br>
 > The data pre-processing part is able to check in this 
 > [Github Page](https://github.com/nedleeds/OCTAPreprocessing).</br>
+
 1. **Environment Setting**</br>
 
-Basically, deeplearning environment needs to consider lots of things.</br>
-Like, verision of cuda, nvidia driver and the Deep learning framework.</br>
-So, it is highly recommended to use docker.</br>
-I also made my experiment environment by utilizing the docker.</br>
+Basically, deeplearning environment needs to consider lots of things.
+Like, verision of cuda, nvidia driver and the Deep learning framework.
+So, it is highly recommended to use docker.
+I also made my experiment environment by utilizing the docker.
 The fundamental environment for this experiment is like below.
 > - Ubuntu (Linux OS for using Nvidia docker)
 > - pytorch v1.11.0
@@ -16,7 +17,7 @@ The fundamental environment for this experiment is like below.
 > - cudnn 8  
 
 It's little bit tricky unless download these seperately.</br>
-But, you don't need to be worry about this,</br>
+But, you don't need to be worry about this,
 Check the [dockerfile](https://github.com/nedleeds/OCTADeeplearning/blob/main/Dockerfile) 
 above and use it.
 ```dockerfile
@@ -30,10 +31,10 @@ The basic usage of this file is consists of 2 steps.
 > - Run</br>
 
 2. **[Main](https://github.com/nedleeds/OCTADeeplearning/blob/main/main.py)** <a id="M"></a>
-> The main function depicts overall process.</br>
+> The main function depicts overall process.
 > Using Data_Handler in [data.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py),
 > the input data for the learning has been set up.</br>
-> 
+> All the arguements from the argparser has been described in the main.py script.
 
 3. **[Data](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py)** <a id="D"></a>
 > Customize the datahandler and dataset
@@ -43,4 +44,4 @@ The basic usage of this file is consists of 2 steps.
 
 5. **[Test](https://github.com/nedleeds/OCTADeeplearning/blob/main/test.py)** <a id="E"></a> 
 > Test the testset and base-on saved model, </br>
-> we visualize it by the Grad-CAM (by customizing [M3d-cam](https://github.com/MECLabTUDA/M3d-Cam))
+> we visualize it by the Grad-CAM (by customizing [M3d-cam](https://github.com/MECLabTUDA/M3d-Cam)) 
