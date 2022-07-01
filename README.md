@@ -76,7 +76,9 @@ To leverage the transfer learning, adapt the autoencoder structure for pre-train
 for the classification with the fully connected layer. As pre-invented transfer learning method is actually using
 the model parameters which come from the natural image. 
 To match the given medical data and overcome the aforementioned limitation, this architecture should be applied.
+<p align="center">
 <img width="601" alt="image" src="https://user-images.githubusercontent.com/48194000/176851397-04ad367b-81c1-49c2-8253-5d00d1d85bd4.png">
+</p>
 
 
 Currently, The multi-classification module has been tested and these will be combined with binary-classification
