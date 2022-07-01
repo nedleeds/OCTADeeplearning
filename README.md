@@ -59,7 +59,6 @@ The concrete detail is described on the script through the comments.
 4. **[Train](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py)** <a id="R"></a></br>
 
 Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
-</br>4-1. Classification</br>
 Basically we utilize the pre-invented CNN models as they've been proved it's performence.</br>
 The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
 The models that we have used for are depicted below table.</br>
@@ -68,6 +67,16 @@ Dimension | VGG19 | ResNet | Inception V3
 :----: |:----:|:----:|:----:
 2D | O | 50, 152 | O |
 3D | X | 18, 50 | O |
+
+But, you can also try another models like GoogleNet, VGG16, EfficientNet and VisionTransformer.</br>
+These models are in the [model.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) 
+and [vit.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py)</br>
+There are several library to use these models and they actually automatically downloaded by provided Dockerfile.</br>
+
+Currently, The multi-classification module has been tested and these will be combined with binary-classification
+with only the classification module. As their difference is just the way of scoring.
+Sooner these are integrated.
+ 
 
 5. **[Test](https://github.com/nedleeds/OCTADeeplearning/blob/main/test.py)** <a id="E"></a></br>
 
