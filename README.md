@@ -33,7 +33,7 @@ The basic usage of this file is consists of 2 steps.
 2. **[Main](https://github.com/nedleeds/OCTADeeplearning/blob/main/main.py)** <a id="M"></a>
 > The main function depicts overall process.
 > Using Data_Handler in [data.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py),
-> the input data for the learning has been set up.</br>
+> the input data for the learning has been set up.
 > All the arguements from the argparser has been described in the main.py script.
 
 3. **[Data](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py)** <a id="D"></a>
