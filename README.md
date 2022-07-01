@@ -59,7 +59,7 @@ The concrete detail is described on the script through the comments.
 4. **[Train](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py)** <a id="R"></a></br>
 
 Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
-4-1. Classification</br>
+</br>4-1. Classification</br>
 Basically we utilize the pre-invented CNN models as they've been proved it's performence.</br>
 The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
 The models that we have used for are depicted below table.</br>
