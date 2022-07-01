@@ -23,7 +23,7 @@ def getArguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_path', nargs='?', default="./data/Nifti/In/Transformed/OCTA_SRL_256", type=str, 
-                        help='Enter the data path.(default: "./data/Nifti/In/FOV_66/SRL")')
+                        help='Enter the data path(default : "./data/Nifti/In/FOV_66/SRL").')
                         # 2d - ./data/dataset/OG - for patch mode
                         # 2d - ./data/dataset/OG/OCTA_Enface - Integrated FOV data
                         # 3d - ./data/Nifti/In/FOV_66/SRL - 640 but this gonna crop the volume to 256
@@ -31,19 +31,19 @@ def getArguments():
                         # 3d after registration - ./data/Nifti/In/Transformed/OCTA_SRL_256
 
     parser.add_argument('--label_path', nargs='?', default="./data/dataset/label/labels.xlsx", type=str, 
-                        help='Enter the label path.(default: "./data/dataset/label/6mm/labels.xlsx")')
+                        help='Enter the label path(default : "./data/dataset/label/6mm/labels.xlsx").')
 
     parser.add_argument('--fold_num', nargs='?', default=5, type=int, 
-                        help='Enter the # of folds.(default: 5)')
+                        help='Enter the # of folds(default : 5).')
 
     parser.add_argument('--flatten', nargs='?', default='True', type=str_to_bool,
-                        help='Flatten for 3D Volumes: True or False')
+                        help='Flatten for 3D Volumes : True or False')
 
     parser.add_argument('--test_rate', nargs='?', default=0.15, type=float,
                         help='Set the rate of train/test : 0.1, 0.15, 0.2, 0.25, 0.3')
 
     parser.add_argument('--dimension', nargs='?', default='3d', type=str,
-                        help='Choose the dimension between 2d/3d')
+                        help='Choose the dimension between 2d/3d.')
 
     parser.add_argument('--model', nargs='?', default='Res_18_3D', type=str,
                         help='Model name : VGG_16_2D, VGG_19_2D, \
@@ -60,22 +60,22 @@ def getArguments():
                         help='Choose the loss function : ce, bce, mse, nll, fcl')
 
     parser.add_argument('--learningrate', nargs='?', default=3e-3, type=float, #5e-3 for ae_pre_train
-                        help='Set the learning Rate')
+                        help='Set the learning Rate.')
 
     parser.add_argument('--epoch', nargs='?', default=200, type=int,
-                        help='Set the epoch Number')
+                        help='Set the epoch Number.')
 
     parser.add_argument('--batch', nargs='?', default=8, type=int, #32 for ae_pre_train
-                        help='Set the batch size')
+                        help='Set the batch size.')
 
     parser.add_argument('--disease', nargs='?', default="NORMAL AMD CSC DR RVO", type=str,
-                        help='Group the disease that you want to utilize ex) "NORMAL AMD CNV CSC DR RVO OTHERS"')
+                        help='Group the disease that you want to utilize ex) "NORMAL AMD CNV CSC DR RVO OTHERS".')
 
     parser.add_argument('--mergeDisease', nargs='?', default='True', type=str_to_bool,
-                        help='Set the disease to Abnormal')
+                        help='Set the disease to Abnormal.')
     
     parser.add_argument('--filter', nargs='?', default='OG', type=str,
-                        help='Using filter or not : OG / Curvelet')
+                        help='Using filter or not : OG / Curvelet.')
 
     parser.add_argument('--layer', nargs='?', default='SRL', type=str,
                         help='Retinal layer Setting : SRL / DRL / Total(=OCTA)')
@@ -87,31 +87,37 @@ def getArguments():
                         help='Autoencoder pre-traning : True/False')
     
     parser.add_argument('--weightDecay', nargs='?', default=0.15, type=float, #0.15
-                        help='Setting the weight Decay')
+                        help='Setting the weight Decay.')
 
     parser.add_argument('--tolerance', nargs='?', default=0.0, type=float, 
-                        help='tolerance')
+                        help='Set the tolerance for the EarlyStopping.')
 
     parser.add_argument('--patience', nargs='?', default=15, type=int,  #30 for ae_pre_train
-                        help='patience')
+                        help='Seth the patience for the EalryStopping.')
 
     parser.add_argument('--ae_data_num', nargs='?', default=500, type=int, 
-                        help='ae_data_num')
+                        help='Set the ae_data_num for autoencoder pre-training.')
 
     parser.add_argument('--transfer_learning_optimizer', nargs='?', default='adam', type=str, 
-                        help='asgd, sgd, rmsp, adam, adamw, adadelta, adagrad') # asgd for ae_x
+                        help='Set the optimizer for transfer learning.') # asgd for ae_x
 
-    parser.add_argument('--patch_mode', default='False', type=str_to_bool)
+    parser.add_argument('--patch_mode', default='False', type=str_to_bool,
+                        help='The patch_mode is for 2D image. This will split the image to 4 parts.')
     
-    parser.add_argument('--test_mode' , default='True', type=str_to_bool)
+    parser.add_argument('--test_mode' , default='True', type=str_to_bool,
+                        help='If test_mode is true, train will be skipped.')
     
-    parser.add_argument('--medcam', default='True', type=str_to_bool)
+    parser.add_argument('--medcam', default='True', type=str_to_bool,
+                        help='This is for extracting 3D/2D attention map from Grad-CAM of M3D-CAM.')
     
-    parser.add_argument('--ae_learning_rate', nargs='?', default=5e-3, type=float) # 5e-3: loss 483-0.001607 # pre-train LR
+    parser.add_argument('--ae_learning_rate', nargs='?', default=5e-3, type=float,
+                        help='For Autoencoder pre-training learning rate.')
     
-    parser.add_argument('--num_class', nargs='?', default=2, type=int)
+    parser.add_argument('--num_class', nargs='?', default=2, type=int,
+                        help='Set the number of classes. 2 for binary classification n for selected diseases.')
     
-    parser.add_argument('--clipping', default='True', type=str_to_bool)
+    parser.add_argument('--clipping', default='True', type=str_to_bool,
+                        help='Clipping before normalizing. If you use this, you can enhance the contrast of data.')
 
     args = parser.parse_args()
     
