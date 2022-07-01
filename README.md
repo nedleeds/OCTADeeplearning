@@ -60,7 +60,7 @@ The concrete detail is described on the script through the comments.
 
 Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
 Basically we utilize the pre-invented CNN models as they've been proved it's performence.
-The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
+The point is, utilizing with our pre-processing method, we could get the increased inference scores.
 The models that we have used for are depicted below table.</br>
 
 Dimension | VGGNet | ResNet | Inception V3 Net | Efficient Net | VIT |
