@@ -25,7 +25,6 @@ Dockerfile
  ```
 You can also download the docker image through the 
 [dockerhub](https://hub.docker.com/r/paulcurk/octa3d/tags).</br>
-
 The basic usage of this file is consists of 2 steps.
 Each command are operated on the shell prompt.
 > - Build
