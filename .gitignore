@@ -12,7 +12,7 @@ main_dh.py
 model_dh.py
 model_server.py
 model_utils.py
-resnet*.py
+resnet_3d.py
 run_sae.py
 sae.py
 showValid*.py
