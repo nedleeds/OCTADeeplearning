@@ -93,5 +93,13 @@ Sooner these are integrated.
 
 5. **[Test](https://github.com/nedleeds/OCTADeeplearning/blob/main/test.py)** <a id="E"></a></br>
 
-Test the testset and base-on saved model, </br>
-we visualize it by the Grad-CAM (by customizing [M3d-cam](https://github.com/MECLabTUDA/M3d-Cam)) 
+For the testset which had been splitted about 30% from the total data was used for the extracted best models.
+To explain the classification process of the extracted model, we visualize them 
+by the Grad-CAM (by customizing [M3d-cam](https://github.com/MECLabTUDA/M3d-Cam))
+As 3D volumetric data is used, the Grad-CAM has been customized to expand the dimension from 2D to 3D.
+Overall process is like below.  
+<img width="940" alt="image" src="https://user-images.githubusercontent.com/48194000/176857209-ab9e1fcd-fa97-4de6-897d-1de8357ec912.png">
+
+After this process, improved retina lesion detection has been watched.
+<img width="940" alt="image" src="https://user-images.githubusercontent.com/48194000/176857209-ab9e1fcd-fa97-4de6-897d-1de8357ec912.png">
+
