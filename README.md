@@ -75,8 +75,8 @@ Because these models have been proved to be useful for the retina disease classi
 To leverage the transfer learning, adapt the autoencoder structure for pre-training and use the encoder parts 
 for the classification with the fully connected layer. As pre-invented transfer learning method is actually using
 the model parameters which come from the natural image. 
-To match the given medical data and overcome the aforementioned data, this architecture should be applied.
-![cnn_models](https://user-images.githubusercontent.com/48194000/176849641-d8037f52-a969-4c47-a40b-f0dc8d0dd51f.png)
+To match the given medical data and overcome the aforementioned limitation, this architecture should be applied.
+<img width="601" alt="image" src="https://user-images.githubusercontent.com/48194000/176851397-04ad367b-81c1-49c2-8253-5d00d1d85bd4.png">
 
 
 Currently, The multi-classification module has been tested and these will be combined with binary-classification
