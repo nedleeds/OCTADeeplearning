@@ -28,9 +28,20 @@ You can also download the docker image through the
 
 The basic usage of this file is consists of 2 steps.
 > - Build
-> - Run</br>
+>> ```python
+>>  docker build . -t octa3d
+>> ```
+> - Run
+>> ```python
+>>  docker run -d -it \
+>>  -v /data:/root/Share/OCTA3d/data \ 
+>>  -v /home/Project/OCTA3d:/root/Share/OCTA3d \
+>>  --name "octa3d" \
+>>  --rm --gpus all octa3d:latest
+>> ```
+</br>
 
-2. **[Main](https://github.com/nedleeds/OCTADeeplearning/blob/main/main.py)** <a id="M"></a>
+1. **[Main](https://github.com/nedleeds/OCTADeeplearning/blob/main/main.py)** <a id="M"></a>
 > The main function depicts overall process.
 > Using Data_Handler in [data.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py),
 > the input data for the learning has been set up.
