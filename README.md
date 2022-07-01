@@ -68,9 +68,9 @@ Dimension | VGG19 | ResNet | Inception V3
 2D | O | 50, 152 | O |
 3D | X | 18, 50 | O |
 
-But, you can also try another models like GoogleNet, VGG16, EfficientNet and VisionTransformer.</br>
+But, you can also try another models like GoogleNet, VGG16, EfficientNet and VisionTransformer.
 These models are in the [model.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) 
-and [vit.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py)</br>
+and [vit.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py)
 There are several library to use these models and they actually automatically downloaded by provided Dockerfile.</br>
 
 Currently, The multi-classification module has been tested and these will be combined with binary-classification
