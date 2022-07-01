@@ -301,8 +301,6 @@ class train():
         This function is for the binary-classification(Normal/Abnormal).
         Basically, train step is based on Pytorch-classification code.
         'checking' module is for the evalutation.
-        Digging is for finding out the proper weights of given models.
-        Utilizing the randomly computed parts by cuda.
         '''
         for fold_idx in range(1, self.fold_num+1):
             seed_everything(34)
