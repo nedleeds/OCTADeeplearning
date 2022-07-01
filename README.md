@@ -1,8 +1,10 @@
 # OCTADeeplearning
 
 > This repository mainly about deep learning parts which is consists of 4 parts([main](#M), [data](#D), [train](#R), [test](#E)).</br>
-> The data pre-processing part is able to check in this [Github Page](https://github.com/nedleeds/OCTAPreprocessing).</br>
+> The data pre-processing part is able to check in this 
+> [Github Page](https://github.com/nedleeds/OCTAPreprocessing).</br>
 1. **Environment Setting**</br>
+
 Basically, deeplearning environment needs to consider lots of things</br>
 Like, verision of cuda, nvidia driver and the Deep learning framework</br>
 So, it is highly recommended to use docker</br>
@@ -15,20 +17,23 @@ The fundamental environment for this experiment is like below
 
 It's little bit tricky unless download these seperately</br>
 But, you don't need to be worry about this</br>
-Check the dockerfile above and use it
+Check the [dockerfile](https://github.com/nedleeds/OCTADeeplearning/blob/main/Dockerfile) 
+above and use it
 ```dockerfile
 Dockerfile
  ```
-You can also download the docker image through the [dockerhub](https://hub.docker.com/r/paulcurk/octa3d/tags)</br>
+You can also download the docker image through the 
+[dockerhub](https://hub.docker.com/r/paulcurk/octa3d/tags)</br>
 
 The basic usage of this file is consists of 2 steps
 > - Build
 > - Run</br>
 
-2. **Main** <a id="M"></a>
-> Customize the datahandler and dataset
+1. **Main** <a id="M"></a>
+> The main function depicts overall process.</br>
+> Using Data_Handler in [data.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/data.py)
 
-3. **Data** <a id="D"></a>
+1. **Data** <a id="D"></a>
 > Customize the datahandler and dataset
 
 4. **Train** <a id="R"></a> 
