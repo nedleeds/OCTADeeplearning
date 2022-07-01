@@ -7,7 +7,6 @@
 *.py[cod]
 data_dh.py
 data_server.py
-INCEPT_V3_3D.py
 main_dh.py
 model_dh.py
 model_server.py

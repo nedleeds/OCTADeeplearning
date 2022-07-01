@@ -63,10 +63,10 @@ Basically we utilize the pre-invented CNN models as they've been proved it's per
 The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
 The models that we have used for are depicted below table.</br>
 
-Dimension | VGG19 | ResNet | Inception V3
-:----: |:----:|:----:|:----:
-2D | O | 50, 152 | O |
-3D | X | [18, 50](https://github.com/nedleeds/OCTADeeplearning/blob/main/utils/resnet.py) | O |
+Dimension | VGGNet | ResNet | Inception V3 Net | Efficient Net | VIT |
+:----:|:----:|:----:|:----:|:----:|:----:|:----:|
+2D | [16, 19](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | [50, 152](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | O |
+3D | [16](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | [18, 50](https://github.com/nedleeds/OCTADeeplearning/blob/main/utils/resnet.py) | O |
 
 But, you can also try another models like GoogleNet, VGG16, EfficientNet and VisionTransformer.
 These models are in the [model.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) 
