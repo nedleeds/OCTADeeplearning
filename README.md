@@ -71,7 +71,8 @@ Dimension | VGGNet | ResNet | Inception V3 Net | Efficient Net | Vision Transfor
 There are several libraries to use these models and they actually automatically downloaded by provided Dockerfile.
 For the paper, we utilize the VGG19, ResNet-50,152, Inception V3 for 2D and ResNet 18, 50, Inception V3 for 3D.
 Because these models have been proved to be useful for the retina disease classifcation by previous researches.
-So the inference score is like below.
+After taking [binary-classification](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py#L299),
+it was able to verify that retaining volumetric information has a higher performance.
 <img width="980" alt="image" src="https://user-images.githubusercontent.com/48194000/176853430-bab03659-68ea-493c-b5d3-fbe87a4dec6f.png">
 
 
