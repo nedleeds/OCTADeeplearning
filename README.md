@@ -101,5 +101,4 @@ Overall process is like below.
 <img width="940" alt="image" src="https://user-images.githubusercontent.com/48194000/176857209-ab9e1fcd-fa97-4de6-897d-1de8357ec912.png">
 
 After this process, improved retina lesion detection has been watched.
-<img width="940" alt="image" src="https://user-images.githubusercontent.com/48194000/176857209-ab9e1fcd-fa97-4de6-897d-1de8357ec912.png">
-
+<img width="966" alt="image" src="https://user-images.githubusercontent.com/48194000/176922253-af60f670-c5aa-438f-a6b1-77e0317ce993.png">
