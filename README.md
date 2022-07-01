@@ -65,7 +65,7 @@ The point is, utilizing with our pre-processing method, we could get the increas
 The models that we have used for are depicted below table.</br>
 
 Dimension | VGG19 | ResNet | Inception V3
----- | ---- | ---- | ----
+:----: |:----:|:----:|:----:
 2D | O | 50, 152 | O |
 3D | X | 18, 50 | O |
 
