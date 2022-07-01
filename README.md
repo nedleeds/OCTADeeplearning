@@ -68,10 +68,9 @@ Dimension | VGGNet | ResNet | Inception V3 Net | Efficient Net | VIT |
 2D | [16, 19](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L80) | [50, 152](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L46) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L149) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L183) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L217) |
 3D | [16](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py#L287) | [18, 50](https://github.com/nedleeds/OCTADeeplearning/blob/main/utils/resnet.py#L217) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/0c1fc1d55504d139ff6c86c8c8dc10b7ac538b95/utils/INCEPT_V3_3D.py#L15) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py#L17) | X |
 
-But, you can also try another models like GoogleNet, VGG16, EfficientNet and VisionTransformer.
-These models are in the [model.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) 
-and [vit.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py)
-There are several library to use these models and they actually automatically downloaded by provided Dockerfile.</br>
+There are several library to use these models and they actually automatically downloaded by provided Dockerfile.
+For the paper, we utilize the VGG19, ResNet-50,152, Inception V3 for 2D and ResNet 18, 50, Inception V3 for 3D.
+Because these models have been proved to be useful for the retina disease classifcation by previous researches.  
 
 Currently, The multi-classification module has been tested and these will be combined with binary-classification
 with only the classification module. As their difference is just the way of scoring.
