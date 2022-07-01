@@ -60,9 +60,10 @@ The concrete detail is described on the script through the comments.
 
 Classification, Autoencoder pre-training (by customizing [Clinicadl](https://clinicadl.readthedocs.io/en/latest/Train/Details/) method)
 4-1. Classification</br>
-> Basically we utilize the pre-invented CNN models as they've been proved it's performence.</br>
-> The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
-> The models that we have used for are depicted below table.</br>
+Basically we utilize the pre-invented CNN models as they've been proved it's performence.</br>
+The point is, utilizing with our pre-processing method, we could get the increased inference scores.</br>
+The models that we have used for are depicted below table.</br>
+
 Dimension | VGG19 | ResNet | Inception V3
 ---- | ---- | ---- | ----
 2D | O | 50, 152 | O |
