@@ -64,9 +64,9 @@ The point is, utilizing with our pre-processing method, we could get the increas
 The models that we have used for are depicted below table.</br>
 
 Dimension | VGGNet | ResNet | Inception V3 Net | Efficient Net | VIT |
-:----:|:----:|:----:|:----:|:----:|:----:|:----:|
-2D | [16, 19](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | [50, 152](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | O |
-3D | [16](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | [18, 50](https://github.com/nedleeds/OCTADeeplearning/blob/main/utils/resnet.py) | O |
+:----:|:----:|:----:|:----:|:----:|:----:|
+2D | [16, 19](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L80) | [50, 152](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L46) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L149) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L183) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/model.py#L217) |
+3D | [16](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) | [18, 50](https://github.com/nedleeds/OCTADeeplearning/blob/main/utils/resnet.py) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/bf05a4042c9842c3311cc87049930819c78d29e8/utils/INCEPT_V3_3D.py#L15) | [O](https://github.com/nedleeds/OCTADeeplearning/blob/main/train.py#L23) | X |
 
 But, you can also try another models like GoogleNet, VGG16, EfficientNet and VisionTransformer.
 These models are in the [model.py](https://github.com/nedleeds/OCTADeeplearning/blob/main/model.py) 
