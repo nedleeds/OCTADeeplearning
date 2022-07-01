@@ -10,6 +10,11 @@ from train import train
 from utils.setDir  import setDirectory
 
 def str_to_bool(v):
+    '''
+    This function is used for convert the string input of the arguement parser to Boolean.
+    Input string has ('yes', 'true', 't', 'y', '1'), then it will be True(bool).
+    For the case of ('no', 'false', 'f', 'n', '0'), then it will be False(bool).
+    '''
     if isinstance(v, bool):
        return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -19,7 +24,7 @@ def str_to_bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def getArguments():
+def get_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_path', nargs='?', default="./data/Nifti/In/Transformed/OCTA_SRL_256", type=str, 
@@ -150,5 +155,5 @@ def main(args):
     test(args)(data_handler)
 
 if __name__ == "__main__": 
-    args = getArguments()
+    args = get_arguments()
     main(args)
