@@ -72,6 +72,13 @@ There are several libraries to use these models and they actually automatically 
 For the paper, we utilize the VGG19, ResNet-50,152, Inception V3 for 2D and ResNet 18, 50, Inception V3 for 3D.
 Because these models have been proved to be useful for the retina disease classifcation by previous researches.  
 
+To leverage the transfer learning, adapt the autoencoder structure for pre-training and use the encoder parts 
+for the classification with the fully connected layer. As pre-invented transfer learning method is actually using
+the model parameters which come from the natural image. 
+To match the given medical data and overcome the aforementioned data, this architecture should be applied.
+![cnn_models](https://user-images.githubusercontent.com/48194000/176849641-d8037f52-a969-4c47-a40b-f0dc8d0dd51f.png)
+
+
 Currently, The multi-classification module has been tested and these will be combined with binary-classification
 with only the classification module. As their difference is just the way of scoring.
 Sooner these are integrated.
