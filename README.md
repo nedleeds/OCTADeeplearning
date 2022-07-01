@@ -1,4 +1,4 @@
-# OCTDeeplearning
+# OCTADeeplearning
 This repository mainly about deep learning parts which is consists of 3 main parts.
 <br>
 1. Data
