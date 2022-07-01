@@ -7,7 +7,6 @@ from datetime import datetime
 from test import test
 from data import Data_Handler
 from train import train
-from utils.setDir  import setDirectory
 
 def str_to_bool(v):
     '''
