@@ -101,5 +101,8 @@ As 3D volumetric data is used, the Grad-CAM has been customized to expand the di
 Overall process is like below.  
 <img width="940" alt="image" src="https://user-images.githubusercontent.com/48194000/176857209-ab9e1fcd-fa97-4de6-897d-1de8357ec912.png">
 
-After this process, improved retina lesion detection has been watched.
-<img width="966" alt="image" src="https://user-images.githubusercontent.com/48194000/176922253-af60f670-c5aa-438f-a6b1-77e0317ce993.png">
+After this process, improved retina lesion detection has been watched. For the case of utilizing the voluemtric information, the retinopathology has been detected quited accurately and the results are shown in below figure [D], [E].
+As 3D attention map has been extracted, we can simulatenously observe the z-axis information of the lesion of retina.
+However, in case of 2D image, only x-y information is able to be acquired like figure [B], [C]. 
+
+<img width="966" alt="image" src="https://user-images.githubusercontent.com/48194000/176922253-af60f670-c5aa-438f-a6b1-77e0317ce993.png">[A] is a X-Z image (=B-scan image) of the OCT volume data. [B] is projected X-Y image (=En-face image). [C] 2D Grad-CAM results from **B**. [D] is an extracted X-Y slice image from 3D OCTA volume (position : red dot). [E] is an 3D Grad-CAM results from **D**.
