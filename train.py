@@ -495,10 +495,8 @@ class train():
                         for step, (train_X, train_y) in enumerate(trainloader):
                             train_X = train_X[0] if '2' in self.dimension else train_X[0].unsqueeze_(1)
                             train_y = train_y[0].long()
-                            # 매개변수 경사도를 0으로 설정
                             optimizer.zero_grad()
-                            # 순전파
-                            # 학습 시에만 연산 기록을 추적
+                            
                             with torch.set_grad_enabled(phase == 'train'):
                                 outputs = model(train_X)
                                 if self.classes > 2:
@@ -517,7 +515,6 @@ class train():
 
                                 step_gt = train_y.data.cpu().numpy()
 
-                                # 학습 단계인 경우 역전파 + 최적화
                                 if phase == 'train':
                                     loss.backward()
                                     optimizer.step()
@@ -588,16 +585,12 @@ class train():
         data_handler.set_dataset('total')
         self.total_size = len(data_handler.getX()['total'])
         trainloader = DataLoader(data_handler, batch_size=self.batch)
+        
         model = next(self.getModel()) 
-        model_ae = model
-
-        # 22.02.15.16:25 -
-        if self.model_name != 'SAE_3D':
-            model_ae  = autoencoder(num_class=self.classes, model=model).to(self.device)
+        model_ae = autoencoder(num_class=self.classes, model=model).to(self.device)
         model_ae.train()
         optimizer = torch.optim.Adam(model_ae.parameters()) 
-        # scheduler = StepLR(optimizer, step_size=1, gamma=0.6)
-
+        
         epoch     = 1
         bad_cnt   = 0
         min_loss  = 99999
@@ -606,16 +599,9 @@ class train():
         self.ae_epoch = 150 if self.model_name == 'SAE_3D' else 1000
         self.ae_data_num = len(data_handler.getX()['total'])
 
-        ''' Noramalization Check
-        for step, (train_X, (disease, patient)) in enumerate(trainloader):  
-            self.check_normalization(train_X, disease, patient)
-        return 
-        '''
-
         while epoch < self.ae_epoch and bad_cnt < 30:
             writer_remove = True if epoch == 1 else False
             writer = self.initWriter(fold_idx=None, mode='preTrain', writer_remove=writer_remove)
-        # while epoch < self.ae_epoch :
             print('-'*46)
             epoch_loss = 0
             step_len   = len(trainloader)
@@ -657,7 +643,6 @@ class train():
                     print(f'model saved. min_loss : {min_loss}')
             else:
                 bad_cnt += 1
-                # scheduler.step()
 
             epoch += 1
             
