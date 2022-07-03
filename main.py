@@ -69,7 +69,7 @@ def get_arguments():
     parser.add_argument('--epoch', nargs='?', default=200, type=int,
                         help='Set the epoch Number.')
 
-    parser.add_argument('--batch', nargs='?', default=8, type=int, #32 for ae_pre_train
+    parser.add_argument('--batch', nargs='?', default=1, type=int, #32 for ae_pre_train
                         help='Set the batch size.')
 
     parser.add_argument('--disease', nargs='?', default="NORMAL AMD CSC DR RVO", type=str,
@@ -108,7 +108,7 @@ def get_arguments():
     parser.add_argument('--patch_mode', default='False', type=str_to_bool,
                         help='The patch_mode is for 2D image. This will split the image to 4 parts.')
     
-    parser.add_argument('--test_mode' , default='True', type=str_to_bool,
+    parser.add_argument('--test_mode' , default='False', type=str_to_bool,
                         help='If test_mode is true, train will be skipped.')
     
     parser.add_argument('--medcam', default='True', type=str_to_bool,

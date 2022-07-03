@@ -189,7 +189,6 @@ class test():
     def get_gt_pd(self, fold_idx, data_loader, phase, check=None):
         # check     = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
         if 'test' in phase:
-            # model = next(self.loadModel('retrain', fold_idx))
             model = next(self.loadModel('best', fold_idx))
         else:
             model = next(self.loadModel('best', fold_idx))
@@ -206,10 +205,7 @@ class test():
         else:
             pass
         
-        
-        
         model.eval()   # 모델을 평가 모드로 설정
-        
         lss_class = next(self.getLoss())
         metrics = {'test':None}            
         epoch_gt, epoch_pd = [], []
@@ -227,14 +223,7 @@ class test():
                                     'header':nib_ref.header}
             else :
                 nib_header_info = None
-            
-            # t_X = test_X.squeeze(0).squeeze(0)
-            # t_X = t_X.data.cpu().numpy()
-            # t_X = t_X.transpose(1,0,2)
-            # t_X = nib.Nifti1Image(t_X, affine=nib_header_info['affine'], header=nib_header_info['header'])
-            # nib.save(t_X, names[step] + "_og.nii.gz")
 
-            
             with torch.no_grad():
                 # model.eval()
                 if self.args.medcam:
@@ -258,7 +247,8 @@ class test():
                         step_pd = preds.data.cpu().numpy()
                     else:
                         step_pd = [preds.item()]
-                    
+                        
+                ## Get the 2D Grad-CAM results for 2D En-face data.
                 # if '2' in self.dimension:
                 #     background_path = os.path.join(self.args.data_path, f"{patient}.png")
                 #     overlay_path = f"{names[step]}.png"
@@ -434,7 +424,8 @@ class test():
                 print(f"AE pre-trained model has been loaded.")
             else:
                 model.load_state_dict(checkpoint['model_state_dict'])
-                # if phase == 'best' and self.is_transfered and self.dimension == '3d': # freezing when ae_transfer learning
+                ## freezing when ae_transfer learning
+                # if phase == 'best' and self.is_transfered and self.dimension == '3d': 
                 #     model = freeze(num_class=self.classes, model=model).to(self.device)
                 logging.info(f"Best model[{fold_idx}] has been loaded.")
                 print(f"Best model[{fold_idx}] has been loaded.")
@@ -450,68 +441,6 @@ class test():
                 print(f"no - {model_path}")
         yield model
 
-    # def loadModel(self, phase, fold_idx=None):
-    #     '''phase : autoencoder/autoencoder_total/best/retrain'''
-    #     import collections
-    #     if phase in ['best', 'retrain'] :
-    #         ae = 'ae_o' if self.is_transfered else 'ae_x'
-    #         model_dir = os.path.join(self.check_dir, phase, ae)
-    #         # model_dir = './Data/output/checkpoint/fromServer/5fold/flt_o/best/ae_o'
-    #         fold = f"fold{fold_idx}" if fold_idx is not None else "single_train" 
-    #         fold_dir = os.path.join(model_dir, f"{fold}")
-    #         print(f'model_dir exist : {os.path.isdir(fold_dir)}')
-    #         if self.is_transfered == False:
-    #             name = f"model_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.pth"
-    #         else:
-    #             name = f"model_b{self.batch}_{self.args.transfer_learning_optimizer}_{self.loss_name}_{self.lr:.0E}.pth"
-    #         model_path = os.path.join(fold_dir, name)
-    #         print(model_path)
-    #         print(f'model_path exist : {os.path.isfile(model_path)}')
-    #     else:
-    #         model_dir = f'./checkpoint_ae/autoencoder'
-    #         os.makedirs(model_dir, exist_ok=True)
-    #         if phase == 'autoencoder_total':
-    #             name = f"{self.model_name}_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}_11111_{self.ae_data_num}.pth"
-    #         else:
-    #             # name = f"model_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}.pth"
-    #             # name = f"model_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}_11111_{self.ae_data_num}.pth"
-    #             name = f"{self.model_name}_b{self.batch}_{self.optimizer_name}_{self.loss_name}_{self.lr:.0E}_11111_{self.ae_data_num}.pth"
-    #             # model_b4_asgd_nll_3E-03_11111
-    #         model_path = os.path.join(model_dir, name)
-
-    #     try: 
-    #         # init_model
-    #         model = next(self.getModel())
-    #         # load model
-    #         checkpoint = torch.load(model_path)
-    #         print(f'model_path : {model_path}')
-    #         print(f"Best Epoch/Loss : {checkpoint['epoch']}/{round(checkpoint['loss'],5)}")
-    #         self.best_epoch = checkpoint['epoch']
-    #         if phase in ["autoencoder", "autoencoder_total"]:
-    #             if phase == "autoencoder":
-    #                 try: # this is not total model of encoder.
-    #                     model.convolutions.load_state_dict(checkpoint['model_state_dict'])
-    #                 except:
-    #                     d = collections.OrderedDict()
-    #                     for j in checkpoint['model_state_dict']:
-    #                         if 'encoder' in j:
-    #                             d[j.replace('encoder.','')] = checkpoint['model_state_dict'][j]
-    #                     model.convolutions.load_state_dict(d)
-    #             else: 
-    #                 model = autoencoder(num_class=self.classes, model=model).to(self.device)
-    #                 model.load_state_dict(checkpoint['model_state_dict'])
-    #             logging.info(f"AE pre-trained model has been loaded.")
-    #             print(f"AE pre-trained model has been loaded.")
-    #         else:
-    #             model.load_state_dict(checkpoint['model_state_dict'])
-    #             logging.info(f"Best model[{fold_idx}] has been loaded.")
-    #             print(f"Best model[{fold_idx}] has been loaded.")
-
-    #     except: 
-    #         logging.info("!!! Loading model has been failed !!!")
-    #         print("!!! Loading model has been failed !!!")
-
-    #     yield model
     def get_figure_title(self):
         dimension = '2D VGG16' if '2' in self.dimension else '3D CNN'
         pre_train = 'pre-trained' if self.ae=='ae_o' else 'from scratch'

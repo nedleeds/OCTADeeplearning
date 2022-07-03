@@ -89,8 +89,8 @@ class train():
             seed_everything(99) ## 5 for my AE
             ## using total set
             logging.info("Start AutoEncoder pre-processing.")
-            self.AEpreTrain(data_handler)
-            # self.testAEpreTrain(data_handler)
+            self.ae_pre_train(data_handler)
+            # self.test_ae_pre_train(data_handler)
             return 
             # del totalset, totalloader
         
@@ -450,130 +450,8 @@ class train():
                     self.saveModel('best', fold_idx, best_epoch, best_model_wts, best_loss)
                     dig = False
                     break
-
-    def retrain(self, data_handler):
-        data_handler.set_dataset('train')
-        dataset_sizes = len(data_handler.getX()['train'])
-        learning_rate = self.lr
-        if self.is_transfered : learning_rate = self.args.ae_learning_rate
-        if self.isMerge:
-            check = checking(lss=self.loss_name, labels=self.label_table, isMerge=self.isMerge)
-        else:
-            check = checking(lss=self.loss_name, labels=data_handler.getDiseaseLabel(), isMerge=self.isMerge)
-            self.current_disease = sorted(list(data_handler.getDiseaseLabel().keys()))
-        for fold_idx in range(1, self.fold_num+1):
-            ch = True
-            if ch: 
-                print('-'*46)
-                ch = False
-            cnt = 0
-            digging = False
-            while not digging:
-                cnt += 1
-                previous_BEST = 0.   
-                self._gamma = 0.94
-                model = next(self.loadModel('best',fold_idx))
-                optimizer = next(self.getOptimizer(model.parameters(), lr=learning_rate))
-                lss_class = next(self.getLoss()) 
-                scheduler = StepLR(optimizer, step_size=10, gamma=0.9)
-                best_model_wts = copy.deepcopy(model.state_dict())
-                epoch = 1
-                metrics = {'train':None}
-                earlyStop = EarlyStopping(key={'name':'Loss','mode':'min'}, tolerance=self.tolerance, patience=self.patience)
-                while not earlyStop.step(metrics['train']) and epoch < 501:
-                    writer_remove = True if epoch == 1 else False
-                    writer = self.initWriter(fold_idx, mode='retrain', writer_remove=writer_remove)
-                    print('-'*46+'\nEpoch {}/{}'.format(epoch, self.epoch))
-                    model.zero_grad()
-                    for phase in ['train']:
-                        epoch_gt, epoch_pd = [], []
-                        model.train() 
-                        epoch_loss = 0.0
-                        trainloader = DataLoader(data_handler, batch_size=self.batch, shuffle=True)
-                        step_len = len(trainloader)
-
-                        for step, (train_X, train_y) in enumerate(trainloader):
-                            train_X = train_X[0] if '2' in self.dimension else train_X[0].unsqueeze_(1)
-                            train_y = train_y[0].long()
-                            optimizer.zero_grad()
-                            
-                            with torch.set_grad_enabled(phase == 'train'):
-                                outputs = model(train_X)
-                                if self.classes > 2:
-                                    loss = nn.CrossEntropyLoss()(outputs, train_y)
-                                    y_pred_softmax = torch.log_softmax(outputs, dim = 1)
-                                    _, prediction = torch.max(y_pred_softmax, dim = 1)    
-                                    step_pd = prediction.data.cpu().numpy()
-                                else:
-                                    if 'incept' in self.model_name.lower():
-                                        prediction = next(self.doActivation(outputs[0]))
-                                    else:
-                                        prediction = next(self.doActivation(outputs))
-                                    _, preds = torch.max(prediction, 1)
-                                    loss = lss_class(prediction, train_y)
-                                    step_pd = preds.data.cpu().numpy()
-
-                                step_gt = train_y.data.cpu().numpy()
-
-                                if phase == 'train':
-                                    loss.backward()
-                                    optimizer.step()
-                            
-                            epoch_gt.extend(step_gt)
-                            epoch_pd.extend(step_pd)
-                            # self.printStatus(epoch, step, step_len, step_loss, 'TRAIN')
-                            if self.classes <3:
-                                check.Step(step_gt, step_pd)
-                            # check.showResult(step_gt, step_pd)
-                            step_loss = loss.item()
-                            epoch_loss += step_loss*len(train_y)
-                            del train_X, train_y, prediction
-
-                        if phase == 'train':
-                            scheduler.step()
-
-                        epoch_loss_mean = epoch_loss/dataset_sizes
-                        self.printStatus(epoch, step, step_len, epoch_loss_mean,f"Best-E/F:{self.best_epoch}/{fold_idx}")
-                        metric, cfmx = check.Epoch(epoch_gt, epoch_pd)
-                        metrics[phase] = metric
-                        metrics[phase]['Loss'] = epoch_loss_mean
-                        self.saveResult(epoch, 'retrain', fold_idx, epoch_loss_mean, metric, cfmx)
-                        
-                        if self.classes == 2:
-                            if phase=='train' : 
-                                epoch_loss_train=epoch_loss_mean
-                                if previous_BEST<= metrics[phase]['F1']:
-                                    print(f'epoch[{epoch}] is best F1')
-                                    self.saveResult(epoch, 'retrain', fold_idx, epoch_loss_train, metric)
-                                    best_epoch = epoch
-                                    best_loss = epoch_loss_train
-                                    best_model_wts = copy.deepcopy(model.state_dict())
-                                    previous_BEST = metrics[phase]['F1']
-
-                                writer.add_scalars(f'{self.loss_name}',{'train':epoch_loss_mean}, epoch)
-                        else:
-                            thsh_key = 'f1'
-                            if 'acc' in thsh_key:
-                                metric_for_thresh = metric[thsh_key]
-                            elif 'f1' in thsh_key:
-                                metric_for_thresh = metric['macro avg']['f1-score']
-                            
-                            if phase=='train' : 
-                                epoch_loss_train=epoch_loss_mean
-                                if previous_BEST <= metric_for_thresh:
-                                    previous_BEST = metric_for_thresh
-                                    best_epoch = epoch
-                                    best_loss = epoch_loss_train
-                                    best_model_wts = copy.deepcopy(model.state_dict())
-
-                    epoch += 1
-                writer.close()
-                if previous_BEST>0.85:
-                    self.saveModel('retrain', fold_idx, best_epoch, best_model_wts, best_loss)
-                    digging = True
-                    break
    
-    def AEpreTrain(self, data_handler):
+    def ae_pre_train(self, data_handler):
         '''
         This function is for the autoencoder transfer learning.
         '''
@@ -660,7 +538,7 @@ class train():
         writer.close()
         del trainloader
 
-    def testAEpreTrain(self, data_handler):
+    def test_ae_pre_train(self, data_handler):
         self.lr = self.pre_trained_lr
         self.ae_data_num = 483
         # self.optimizer_name = self.args.transfer_learning_optimizer
